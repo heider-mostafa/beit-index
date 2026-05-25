@@ -10,6 +10,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle } from 'lucide-react';
+import { useAuth } from '@/src/contexts/AuthContext';
 
 interface Governorate {
   id: string;
@@ -84,6 +85,7 @@ export default function RequestAppraisal() {
   const { i18n } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { session } = useAuth();
   const isRTL = i18n.language === 'ar';
 
   // Get appraiserId from URL if present (direct booking)
@@ -228,12 +230,17 @@ export default function RequestAppraisal() {
     setError(null);
 
     try {
-      const token = localStorage.getItem('supabase_access_token');
+      if (!session?.access_token) {
+        setError(isRTL ? 'يرجى تسجيل الدخول أولاً' : 'Please log in first');
+        setLoading(false);
+        return;
+      }
+
       const res = await fetch('/api/jobs', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           propertyType,

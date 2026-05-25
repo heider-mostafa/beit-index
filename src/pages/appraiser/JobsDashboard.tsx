@@ -22,6 +22,8 @@ import {
   Mail,
   DollarSign,
   Settings,
+  MessageCircle,
+  Eye,
 } from 'lucide-react';
 
 interface Job {
@@ -427,6 +429,17 @@ export default function AppraiserJobsDashboard() {
                 <div className="text-center text-sm text-emerald-600 bg-emerald-50 p-2 rounded-lg">
                   {isRTL ? 'في انتظار قبول العميل' : 'Awaiting client acceptance'}
                 </div>
+              )}
+
+              {/* View Details / Message button for active jobs */}
+              {type === 'active' && ['paid', 'in_progress', 'delivered'].includes(job.status) && (
+                <Link
+                  to={`/appraiser/jobs/${job.id}`}
+                  className="w-full mt-2 px-4 py-2 border border-cream-300 text-ink-600 text-sm rounded-lg hover:bg-cream-100 flex items-center justify-center gap-2"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  {isRTL ? 'التفاصيل والمحادثة' : 'Details & Messages'}
+                </Link>
               )}
             </div>
           </div>

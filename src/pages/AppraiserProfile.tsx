@@ -468,9 +468,15 @@ export const AppraiserProfilePage = () => {
               </p>
 
               <div className="pt-6 border-t border-ink-50">
-                <button className="w-full text-center text-body-s font-medium text-ink-400 hover:text-ink-600 transition-colors">
+                <button
+                  onClick={handleRequestAppraisal}
+                  className="w-full text-center text-body-s font-medium text-ink-400 hover:text-ink-600 transition-colors"
+                >
                   {t('profile.card.message')}
                 </button>
+                <p className="text-[10px] text-ink-200 text-center mt-2">
+                  {isAr ? 'المراسلة متاحة بعد تقديم طلب التقييم' : 'Messaging available after submitting a request'}
+                </p>
               </div>
             </Card>
 

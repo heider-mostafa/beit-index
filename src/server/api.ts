@@ -3222,6 +3222,824 @@ router.get('/bank/account', authMiddleware, bankMiddleware, async (req: Authenti
 });
 
 // ============================================================================
+// BANK DATA MARKETPLACE - Browse & Purchase Anonymized Reports
+// ============================================================================
+
+// Get marketplace listings with filters
+router.get('/bank/marketplace', authMiddleware, bankMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const supabase = getServiceClient();
+    const bankAccount = (req as AuthenticatedRequest & { bankAccount?: { id: string } }).bankAccount;
+
+    const {
+      page = '1',
+      limit = '20',
+      propertyType,
+      governorateId,
+      cityId,
+      districtId,
+      reportKind,
+      appraiserId,
+      dateFrom,
+      dateTo,
+      sortBy = 'listed_at',
+      sortOrder = 'desc',
+    } = req.query;
+
+    const pageNum = parseInt(page as string) || 1;
+    const limitNum = Math.min(parseInt(limit as string) || 20, 100);
+    const offset = (pageNum - 1) * limitNum;
+
+    let query = supabase
+      .from('report_listings')
+      .select(`
+        id,
+        property_type,
+        approximate_area,
+        bedrooms,
+        bathrooms,
+        report_kind,
+        listing_price_piasters,
+        listed_at,
+        governorate_id,
+        governorates(id, name_en, name_ar),
+        city_id,
+        cities(id, name_en, name_ar),
+        district_id,
+        districts(id, name_en, name_ar),
+        appraiser_id,
+        appraiser:appraiser_id(id, full_name, fra_license_number)
+      `, { count: 'exact' })
+      .eq('is_active', true);
+
+    // Apply filters
+    if (propertyType) query = query.eq('property_type', propertyType);
+    if (governorateId) query = query.eq('governorate_id', governorateId);
+    if (cityId) query = query.eq('city_id', cityId);
+    if (districtId) query = query.eq('district_id', districtId);
+    if (reportKind) query = query.eq('report_kind', reportKind);
+    if (appraiserId) query = query.eq('appraiser_id', appraiserId);
+    if (dateFrom) query = query.gte('listed_at', dateFrom);
+    if (dateTo) query = query.lte('listed_at', dateTo);
+
+    // Sorting
+    const validSortFields = ['listed_at', 'listing_price_piasters', 'property_type'];
+    const sortField = validSortFields.includes(sortBy as string) ? sortBy as string : 'listed_at';
+    query = query.order(sortField, { ascending: sortOrder === 'asc' });
+
+    // Pagination
+    query = query.range(offset, offset + limitNum - 1);
+
+    const { data: listings, count, error } = await query;
+
+    if (error) throw error;
+
+    // Check which listings bank already purchased
+    const listingIds = (listings || []).map((l: { id: string }) => l.id);
+    let purchasedIds: string[] = [];
+
+    if (listingIds.length > 0 && bankAccount?.id) {
+      const { data: purchasedItems } = await supabase
+        .from('bank_purchase_items')
+        .select('listing_id, purchase:purchase_id(bank_account_id, status)')
+        .in('listing_id', listingIds);
+
+      purchasedIds = (purchasedItems || [])
+        .filter((item: { purchase: { bank_account_id: string; status: string } }) =>
+          item.purchase?.bank_account_id === bankAccount.id && item.purchase?.status === 'completed'
+        )
+        .map((item: { listing_id: string }) => item.listing_id);
+    }
+
+    // Get volume discounts
+    const { data: discounts } = await supabase
+      .from('bank_volume_discounts')
+      .select('*')
+      .eq('is_active', true)
+      .order('min_quantity', { ascending: true });
+
+    res.json({
+      listings: (listings || []).map((listing: { id: string }) => ({
+        ...listing,
+        is_purchased: purchasedIds.includes(listing.id),
+      })),
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limitNum),
+      },
+      volumeDiscounts: discounts || [],
+    });
+  } catch (err) {
+    console.error('Error fetching marketplace listings:', err);
+    res.status(500).json({ error: 'Failed to fetch marketplace listings' });
+  }
+});
+
+// Get single listing details (preview)
+router.get('/bank/marketplace/:id', authMiddleware, bankMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const supabase = getServiceClient();
+    const bankAccount = (req as AuthenticatedRequest & { bankAccount?: { id: string } }).bankAccount;
+    const listingId = req.params.id;
+
+    const { data: listing, error } = await supabase
+      .from('report_listings')
+      .select(`
+        id,
+        property_type,
+        approximate_area,
+        bedrooms,
+        bathrooms,
+        report_kind,
+        listing_price_piasters,
+        listed_at,
+        governorate_id,
+        governorates(id, name_en, name_ar),
+        city_id,
+        cities(id, name_en, name_ar),
+        district_id,
+        districts(id, name_en, name_ar),
+        appraiser_id,
+        appraiser:appraiser_id(id, full_name, fra_license_number, professional_title_en, years_experience)
+      `)
+      .eq('id', listingId)
+      .eq('is_active', true)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({ error: 'Listing not found' });
+      }
+      throw error;
+    }
+
+    // Check if purchased
+    let isPurchased = false;
+    if (bankAccount?.id) {
+      const { data: purchaseItem } = await supabase
+        .from('bank_purchase_items')
+        .select('id, purchase:purchase_id(bank_account_id, status)')
+        .eq('listing_id', listingId)
+        .single();
+
+      isPurchased = purchaseItem?.purchase?.bank_account_id === bankAccount.id &&
+                    purchaseItem?.purchase?.status === 'completed';
+    }
+
+    res.json({
+      listing: {
+        ...listing,
+        is_purchased: isPurchased,
+      },
+    });
+  } catch (err) {
+    console.error('Error fetching listing:', err);
+    res.status(500).json({ error: 'Failed to fetch listing' });
+  }
+});
+
+// ============================================================================
+// BANK CART MANAGEMENT
+// ============================================================================
+
+// Get cart items
+router.get('/bank/cart', authMiddleware, bankMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const supabase = getServiceClient();
+    const bankAccount = (req as AuthenticatedRequest & { bankAccount?: { id: string } }).bankAccount;
+
+    if (!bankAccount?.id) {
+      return res.status(400).json({ error: 'Bank account not found' });
+    }
+
+    const { data: cartItems, error } = await supabase
+      .from('bank_cart_items')
+      .select(`
+        id,
+        added_at,
+        listing:listing_id(
+          id,
+          property_type,
+          approximate_area,
+          bedrooms,
+          report_kind,
+          listing_price_piasters,
+          listed_at,
+          governorates(name_en, name_ar),
+          cities(name_en, name_ar),
+          districts(name_en, name_ar),
+          appraiser:appraiser_id(full_name)
+        )
+      `)
+      .eq('bank_account_id', bankAccount.id)
+      .order('added_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Calculate totals
+    const items = cartItems || [];
+    const subtotal = items.reduce((sum: number, item: { listing: { listing_price_piasters: number } }) =>
+      sum + (item.listing?.listing_price_piasters || 0), 0);
+
+    // Get applicable discount
+    const { data: discounts } = await supabase
+      .from('bank_volume_discounts')
+      .select('*')
+      .lte('min_quantity', items.length)
+      .eq('is_active', true)
+      .order('min_quantity', { ascending: false })
+      .limit(1);
+
+    const discount = discounts?.[0] || { discount_percent: 0 };
+    const discountAmount = Math.round(subtotal * (discount.discount_percent / 100));
+    const total = subtotal - discountAmount;
+
+    res.json({
+      items,
+      summary: {
+        itemCount: items.length,
+        subtotal,
+        discountPercent: discount.discount_percent,
+        discountAmount,
+        total,
+      },
+    });
+  } catch (err) {
+    console.error('Error fetching cart:', err);
+    res.status(500).json({ error: 'Failed to fetch cart' });
+  }
+});
+
+// Add to cart
+router.post('/bank/cart', authMiddleware, bankMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const supabase = getServiceClient();
+    const bankAccount = (req as AuthenticatedRequest & { bankAccount?: { id: string } }).bankAccount;
+    const userId = req.user!.id;
+    const { listingId } = req.body;
+
+    if (!bankAccount?.id) {
+      return res.status(400).json({ error: 'Bank account not found' });
+    }
+
+    if (!listingId) {
+      return res.status(400).json({ error: 'listingId is required' });
+    }
+
+    // Verify listing exists and is active
+    const { data: listing, error: listingError } = await supabase
+      .from('report_listings')
+      .select('id')
+      .eq('id', listingId)
+      .eq('is_active', true)
+      .single();
+
+    if (listingError || !listing) {
+      return res.status(404).json({ error: 'Listing not found or not available' });
+    }
+
+    // Check if already purchased
+    const { data: alreadyPurchased } = await supabase
+      .from('bank_purchase_items')
+      .select('id, purchase:purchase_id(bank_account_id, status)')
+      .eq('listing_id', listingId)
+      .single();
+
+    if (alreadyPurchased?.purchase?.bank_account_id === bankAccount.id &&
+        alreadyPurchased?.purchase?.status === 'completed') {
+      return res.status(400).json({ error: 'Listing already purchased' });
+    }
+
+    // Add to cart (upsert to handle duplicates gracefully)
+    const { data: cartItem, error } = await supabase
+      .from('bank_cart_items')
+      .upsert({
+        bank_account_id: bankAccount.id,
+        listing_id: listingId,
+        added_by: userId,
+      }, { onConflict: 'bank_account_id,listing_id' })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ cartItem, message: 'Added to cart' });
+  } catch (err) {
+    console.error('Error adding to cart:', err);
+    res.status(500).json({ error: 'Failed to add to cart' });
+  }
+});
+
+// Remove from cart
+router.delete('/bank/cart/:listingId', authMiddleware, bankMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const supabase = getServiceClient();
+    const bankAccount = (req as AuthenticatedRequest & { bankAccount?: { id: string } }).bankAccount;
+    const listingId = req.params.listingId;
+
+    if (!bankAccount?.id) {
+      return res.status(400).json({ error: 'Bank account not found' });
+    }
+
+    const { error } = await supabase
+      .from('bank_cart_items')
+      .delete()
+      .eq('bank_account_id', bankAccount.id)
+      .eq('listing_id', listingId);
+
+    if (error) throw error;
+
+    res.json({ message: 'Removed from cart' });
+  } catch (err) {
+    console.error('Error removing from cart:', err);
+    res.status(500).json({ error: 'Failed to remove from cart' });
+  }
+});
+
+// Clear cart
+router.delete('/bank/cart', authMiddleware, bankMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const supabase = getServiceClient();
+    const bankAccount = (req as AuthenticatedRequest & { bankAccount?: { id: string } }).bankAccount;
+
+    if (!bankAccount?.id) {
+      return res.status(400).json({ error: 'Bank account not found' });
+    }
+
+    const { error } = await supabase
+      .from('bank_cart_items')
+      .delete()
+      .eq('bank_account_id', bankAccount.id);
+
+    if (error) throw error;
+
+    res.json({ message: 'Cart cleared' });
+  } catch (err) {
+    console.error('Error clearing cart:', err);
+    res.status(500).json({ error: 'Failed to clear cart' });
+  }
+});
+
+// ============================================================================
+// BANK CHECKOUT & PAYMENT
+// ============================================================================
+
+// Calculate checkout totals
+router.post('/bank/checkout', authMiddleware, bankMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const supabase = getServiceClient();
+    const bankAccount = (req as AuthenticatedRequest & { bankAccount?: { id: string } }).bankAccount;
+
+    if (!bankAccount?.id) {
+      return res.status(400).json({ error: 'Bank account not found' });
+    }
+
+    // Get cart items
+    const { data: cartItems, error: cartError } = await supabase
+      .from('bank_cart_items')
+      .select(`
+        listing:listing_id(
+          id,
+          listing_price_piasters
+        )
+      `)
+      .eq('bank_account_id', bankAccount.id);
+
+    if (cartError) throw cartError;
+
+    if (!cartItems || cartItems.length === 0) {
+      return res.status(400).json({ error: 'Cart is empty' });
+    }
+
+    const items = cartItems.map((item: { listing: { id: string; listing_price_piasters: number } }) => item.listing);
+    const subtotal = items.reduce((sum: number, item: { listing_price_piasters: number }) =>
+      sum + (item.listing_price_piasters || 0), 0);
+
+    // Get applicable discount
+    const { data: discounts } = await supabase
+      .from('bank_volume_discounts')
+      .select('*')
+      .lte('min_quantity', items.length)
+      .eq('is_active', true)
+      .order('min_quantity', { ascending: false })
+      .limit(1);
+
+    const discount = discounts?.[0] || { discount_percent: 0, min_quantity: 0 };
+    const discountAmount = Math.round(subtotal * (discount.discount_percent / 100));
+    const total = subtotal - discountAmount;
+
+    res.json({
+      checkout: {
+        itemCount: items.length,
+        items: items.map((item: { id: string; listing_price_piasters: number }) => ({
+          listingId: item.id,
+          price: item.listing_price_piasters,
+        })),
+        subtotal,
+        discountPercent: discount.discount_percent,
+        discountMinQuantity: discount.min_quantity,
+        discountAmount,
+        total,
+      },
+    });
+  } catch (err) {
+    console.error('Error calculating checkout:', err);
+    res.status(500).json({ error: 'Failed to calculate checkout' });
+  }
+});
+
+// Initiate payment for cart
+router.post('/bank/checkout/pay', authMiddleware, bankMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const supabase = getServiceClient();
+    const bankAccount = (req as AuthenticatedRequest & { bankAccount?: { id: string; name: string } }).bankAccount;
+    const userId = req.user!.id;
+
+    if (!bankAccount?.id) {
+      return res.status(400).json({ error: 'Bank account not found' });
+    }
+
+    // Get cart items with prices
+    const { data: cartItems, error: cartError } = await supabase
+      .from('bank_cart_items')
+      .select(`
+        listing:listing_id(
+          id,
+          listing_price_piasters
+        )
+      `)
+      .eq('bank_account_id', bankAccount.id);
+
+    if (cartError) throw cartError;
+
+    if (!cartItems || cartItems.length === 0) {
+      return res.status(400).json({ error: 'Cart is empty' });
+    }
+
+    const items = cartItems.map((item: { listing: { id: string; listing_price_piasters: number } }) => item.listing);
+    const subtotal = items.reduce((sum: number, item: { listing_price_piasters: number }) =>
+      sum + (item.listing_price_piasters || 0), 0);
+
+    // Get applicable discount
+    const { data: discounts } = await supabase
+      .from('bank_volume_discounts')
+      .select('*')
+      .lte('min_quantity', items.length)
+      .eq('is_active', true)
+      .order('min_quantity', { ascending: false })
+      .limit(1);
+
+    const discount = discounts?.[0] || { discount_percent: 0 };
+    const discountAmount = Math.round(subtotal * (discount.discount_percent / 100));
+    const total = subtotal - discountAmount;
+
+    // Create purchase record
+    const { data: purchase, error: purchaseError } = await supabase
+      .from('bank_report_purchases')
+      .insert({
+        bank_account_id: bankAccount.id,
+        purchased_by: userId,
+        item_count: items.length,
+        subtotal_piasters: subtotal,
+        discount_percent: discount.discount_percent,
+        discount_amount_piasters: discountAmount,
+        total_piasters: total,
+        status: 'pending',
+      })
+      .select()
+      .single();
+
+    if (purchaseError) throw purchaseError;
+
+    // Create purchase items
+    const purchaseItems = items.map((item: { id: string; listing_price_piasters: number }) => ({
+      purchase_id: purchase.id,
+      listing_id: item.id,
+      price_piasters: item.listing_price_piasters,
+    }));
+
+    const { error: itemsError } = await supabase
+      .from('bank_purchase_items')
+      .insert(purchaseItems);
+
+    if (itemsError) throw itemsError;
+
+    // Initiate Paymob payment
+    const paymobResult = await paymob.initiatePayment({
+      amount: total,
+      orderId: purchase.id,
+      billingData: {
+        first_name: bankAccount.name || 'Bank',
+        last_name: 'Account',
+        email: req.user!.email,
+        phone_number: '01000000000',
+      },
+      metadata: {
+        type: 'bank_report_purchase',
+        purchaseId: purchase.id,
+        bankAccountId: bankAccount.id,
+        itemCount: items.length,
+      },
+    });
+
+    // Update purchase with Paymob order ID
+    await supabase
+      .from('bank_report_purchases')
+      .update({
+        paymob_order_id: paymobResult.orderId,
+        status: 'processing',
+      })
+      .eq('id', purchase.id);
+
+    res.json({
+      purchaseId: purchase.id,
+      paymobOrderId: paymobResult.orderId,
+      iframeUrl: paymobResult.iframeUrl,
+      total,
+    });
+  } catch (err) {
+    console.error('Error initiating payment:', err);
+    res.status(500).json({ error: 'Failed to initiate payment' });
+  }
+});
+
+// Paymob callback for bank purchases
+router.post('/bank/checkout/callback', async (req: Request, res: Response) => {
+  try {
+    const supabase = getServiceClient();
+
+    // Verify HMAC signature
+    const hmacSecret = process.env.PAYMOB_HMAC_SECRET;
+    if (hmacSecret) {
+      const isValid = paymob.verifyHmac(req.query, hmacSecret);
+      if (!isValid) {
+        console.error('Invalid HMAC signature for bank purchase callback');
+        return res.status(400).json({ error: 'Invalid signature' });
+      }
+    }
+
+    const {
+      success,
+      order: paymobOrderId,
+      id: transactionId,
+    } = req.query;
+
+    // Find the purchase by Paymob order ID
+    const { data: purchase, error: findError } = await supabase
+      .from('bank_report_purchases')
+      .select('*')
+      .eq('paymob_order_id', paymobOrderId)
+      .single();
+
+    if (findError || !purchase) {
+      console.error('Purchase not found for order:', paymobOrderId);
+      return res.status(404).json({ error: 'Purchase not found' });
+    }
+
+    if (success === 'true') {
+      // Payment successful
+      await supabase
+        .from('bank_report_purchases')
+        .update({
+          status: 'completed',
+          paymob_transaction_id: transactionId as string,
+          paid_at: new Date().toISOString(),
+        })
+        .eq('id', purchase.id);
+
+      // Clear the cart
+      await supabase
+        .from('bank_cart_items')
+        .delete()
+        .eq('bank_account_id', purchase.bank_account_id);
+
+      // Redirect to success page
+      res.redirect(`/bank/reports?purchase=${purchase.id}&status=success`);
+    } else {
+      // Payment failed
+      await supabase
+        .from('bank_report_purchases')
+        .update({
+          status: 'failed',
+          paymob_transaction_id: transactionId as string,
+        })
+        .eq('id', purchase.id);
+
+      // Delete the purchase items (cleanup)
+      await supabase
+        .from('bank_purchase_items')
+        .delete()
+        .eq('purchase_id', purchase.id);
+
+      // Delete the failed purchase
+      await supabase
+        .from('bank_report_purchases')
+        .delete()
+        .eq('id', purchase.id);
+
+      res.redirect(`/bank/cart?status=failed`);
+    }
+  } catch (err) {
+    console.error('Error processing bank purchase callback:', err);
+    res.status(500).json({ error: 'Failed to process callback' });
+  }
+});
+
+// ============================================================================
+// BANK PURCHASED REPORTS
+// ============================================================================
+
+// Get purchase history
+router.get('/bank/purchases', authMiddleware, bankMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const supabase = getServiceClient();
+    const bankAccount = (req as AuthenticatedRequest & { bankAccount?: { id: string } }).bankAccount;
+
+    if (!bankAccount?.id) {
+      return res.status(400).json({ error: 'Bank account not found' });
+    }
+
+    const { data: purchases, error } = await supabase
+      .from('bank_report_purchases')
+      .select(`
+        id,
+        item_count,
+        subtotal_piasters,
+        discount_percent,
+        discount_amount_piasters,
+        total_piasters,
+        status,
+        created_at,
+        paid_at,
+        purchased_by(full_name)
+      `)
+      .eq('bank_account_id', bankAccount.id)
+      .eq('status', 'completed')
+      .order('paid_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({ purchases: purchases || [] });
+  } catch (err) {
+    console.error('Error fetching purchases:', err);
+    res.status(500).json({ error: 'Failed to fetch purchases' });
+  }
+});
+
+// Get purchased listings
+router.get('/bank/reports', authMiddleware, bankMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const supabase = getServiceClient();
+    const bankAccount = (req as AuthenticatedRequest & { bankAccount?: { id: string } }).bankAccount;
+
+    if (!bankAccount?.id) {
+      return res.status(400).json({ error: 'Bank account not found' });
+    }
+
+    const { data: purchasedReports, error } = await supabase
+      .from('bank_purchase_items')
+      .select(`
+        id,
+        price_piasters,
+        created_at,
+        purchase:purchase_id(
+          id,
+          bank_account_id,
+          status,
+          paid_at
+        ),
+        listing:listing_id(
+          id,
+          property_type,
+          approximate_area,
+          bedrooms,
+          bathrooms,
+          report_kind,
+          listed_at,
+          valuation_amount_piasters,
+          governorates(name_en, name_ar),
+          cities(name_en, name_ar),
+          districts(name_en, name_ar),
+          appraiser:appraiser_id(full_name, fra_license_number)
+        )
+      `)
+      .eq('purchase.bank_account_id', bankAccount.id)
+      .eq('purchase.status', 'completed')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Filter to only show completed purchases
+    const reports = (purchasedReports || []).filter(
+      (r: { purchase: { status: string } | null }) => r.purchase?.status === 'completed'
+    );
+
+    res.json({ reports });
+  } catch (err) {
+    console.error('Error fetching purchased reports:', err);
+    res.status(500).json({ error: 'Failed to fetch purchased reports' });
+  }
+});
+
+// View full report (only if purchased)
+router.get('/bank/reports/:listingId', authMiddleware, bankMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const supabase = getServiceClient();
+    const bankAccount = (req as AuthenticatedRequest & { bankAccount?: { id: string } }).bankAccount;
+    const listingId = req.params.listingId;
+
+    if (!bankAccount?.id) {
+      return res.status(400).json({ error: 'Bank account not found' });
+    }
+
+    // Verify bank has purchased this listing
+    const { data: purchaseItem, error: purchaseError } = await supabase
+      .from('bank_purchase_items')
+      .select(`
+        id,
+        purchase:purchase_id(
+          bank_account_id,
+          status
+        )
+      `)
+      .eq('listing_id', listingId)
+      .single();
+
+    if (purchaseError || !purchaseItem) {
+      return res.status(403).json({ error: 'Report not purchased' });
+    }
+
+    if (purchaseItem.purchase?.bank_account_id !== bankAccount.id ||
+        purchaseItem.purchase?.status !== 'completed') {
+      return res.status(403).json({ error: 'Report not purchased' });
+    }
+
+    // Get full listing with job details (anonymized)
+    const { data: listing, error: listingError } = await supabase
+      .from('report_listings')
+      .select(`
+        id,
+        property_type,
+        approximate_area,
+        bedrooms,
+        bathrooms,
+        report_kind,
+        listing_price_piasters,
+        listed_at,
+        valuation_amount_piasters,
+        governorates(id, name_en, name_ar),
+        cities(id, name_en, name_ar),
+        districts(id, name_en, name_ar),
+        appraiser:appraiser_id(
+          id,
+          full_name,
+          fra_license_number,
+          professional_title_en,
+          professional_title_ar,
+          years_experience
+        ),
+        job:job_request_id(
+          report_kind,
+          property_type,
+          approximate_area,
+          floor,
+          bedrooms,
+          bathrooms,
+          created_at,
+          completed_at,
+          delivered_report_json
+        )
+      `)
+      .eq('id', listingId)
+      .single();
+
+    if (listingError) throw listingError;
+
+    // Return full report data (anonymized - no client info, exact address, or photos)
+    res.json({
+      report: {
+        listing,
+        // Extract anonymized report content
+        content: listing.job?.delivered_report_json ? {
+          ...listing.job.delivered_report_json,
+          // Remove any sensitive fields that might be in the JSON
+          clientName: undefined,
+          clientContact: undefined,
+          exactAddress: undefined,
+          photos: undefined,
+          images: undefined,
+        } : null,
+      },
+    });
+  } catch (err) {
+    console.error('Error fetching report:', err);
+    res.status(500).json({ error: 'Failed to fetch report' });
+  }
+});
+
+// ============================================================================
 // SPRINT 5B: JOB REQUEST MARKETPLACE
 // ============================================================================
 
@@ -4211,6 +5029,65 @@ router.get('/appraiser/my-jobs', authMiddleware, appraiserMiddleware, async (req
   } catch (err) {
     console.error('Error fetching appraiser jobs:', err);
     res.status(500).json({ error: 'Failed to fetch jobs' });
+  }
+});
+
+// Get single job for appraiser (with full details)
+router.get('/appraiser/jobs/:id', authMiddleware, appraiserMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const supabase = getServiceClient();
+    const appraiserId = req.user!.id;
+    const jobId = req.params.id;
+
+    const { data: job, error } = await supabase
+      .from('job_requests')
+      .select(`
+        id,
+        property_type,
+        report_kind,
+        urgency,
+        status,
+        address_description,
+        approximate_area,
+        floor,
+        bedrooms,
+        bathrooms,
+        total_price,
+        platform_fee,
+        due_date,
+        special_instructions,
+        created_at,
+        accepted_at,
+        started_at,
+        delivered_at,
+        governorate_id,
+        governorates(id, name_en, name_ar),
+        city_id,
+        cities(id, name_en, name_ar),
+        district_id,
+        districts(id, name_en, name_ar),
+        client:client_id(id, full_name, email, phone)
+      `)
+      .eq('id', jobId)
+      .eq('assigned_appraiser_id', appraiserId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({ error: 'Job not found' });
+      }
+      throw error;
+    }
+
+    res.json({
+      job: {
+        ...job,
+        appraiser_earnings: job.total_price - job.platform_fee,
+      },
+    });
+  } catch (err) {
+    console.error('Error fetching job:', err);
+    res.status(500).json({ error: 'Failed to fetch job' });
   }
 });
 
@@ -5239,6 +6116,159 @@ router.post('/jobs/:id/complete', authMiddleware, async (req: AuthenticatedReque
   } catch (err) {
     console.error('Error completing job:', err);
     res.status(500).json({ error: 'Failed to complete job' });
+  }
+});
+
+// ============================================================================
+// JOB MESSAGES (Client-Appraiser Communication)
+// ============================================================================
+
+// Get messages for a job
+router.get('/jobs/:id/messages', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const supabase = req.supabase!;
+    const { id } = req.params;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const offset = parseInt(req.query.offset as string) || 0;
+
+    // Get messages with sender info
+    const { data: messages, error, count } = await supabase
+      .from('job_messages')
+      .select(`
+        id,
+        content,
+        attachment_path,
+        attachment_name,
+        attachment_size,
+        attachment_type,
+        is_read,
+        read_at,
+        created_at,
+        sender:users!sender_id (
+          id,
+          full_name,
+          avatar_url
+        )
+      `, { count: 'exact' })
+      .eq('job_id', id)
+      .order('created_at', { ascending: true })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      console.error('Error fetching messages:', error);
+      return res.status(500).json({ error: 'Failed to fetch messages' });
+    }
+
+    // Also get unread count
+    const { data: unreadData } = await supabase.rpc('get_job_unread_count', { p_job_id: id });
+
+    res.json({
+      messages: messages || [],
+      total: count || 0,
+      unreadCount: unreadData || 0,
+    });
+  } catch (err) {
+    console.error('Error fetching messages:', err);
+    res.status(500).json({ error: 'Failed to fetch messages' });
+  }
+});
+
+// Send a new message
+router.post('/jobs/:id/messages', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const supabase = getServiceClient();
+    const userSupabase = req.supabase!;
+    const { id } = req.params;
+    const { content, attachmentPath, attachmentName, attachmentSize, attachmentType } = req.body;
+
+    if (!content || content.trim().length === 0) {
+      return res.status(400).json({ error: 'Message content is required' });
+    }
+
+    // Verify user has access to this job
+    const { data: job, error: jobError } = await userSupabase
+      .from('job_requests')
+      .select('id, client_id, assigned_appraiser_id, status')
+      .eq('id', id)
+      .single();
+
+    if (jobError || !job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    // Only allow messaging for active jobs
+    const allowedStatuses = ['paid', 'assigned', 'in_progress', 'delivered'];
+    if (!allowedStatuses.includes(job.status)) {
+      return res.status(400).json({ error: 'Messaging is not available for this job status' });
+    }
+
+    // Verify user is client or appraiser for this job
+    const isClient = job.client_id === req.user!.id;
+    const isAppraiser = job.assigned_appraiser_id === req.user!.id;
+
+    if (!isClient && !isAppraiser) {
+      return res.status(403).json({ error: 'Not authorized to send messages for this job' });
+    }
+
+    // Insert message
+    const { data: message, error: insertError } = await supabase
+      .from('job_messages')
+      .insert({
+        job_id: id,
+        sender_id: req.user!.id,
+        content: content.trim(),
+        attachment_path: attachmentPath || null,
+        attachment_name: attachmentName || null,
+        attachment_size: attachmentSize || null,
+        attachment_type: attachmentType || null,
+      })
+      .select(`
+        id,
+        content,
+        attachment_path,
+        attachment_name,
+        attachment_size,
+        attachment_type,
+        is_read,
+        created_at,
+        sender:users!sender_id (
+          id,
+          full_name,
+          avatar_url
+        )
+      `)
+      .single();
+
+    if (insertError) {
+      console.error('Error inserting message:', insertError);
+      return res.status(500).json({ error: 'Failed to send message' });
+    }
+
+    res.json({ message });
+  } catch (err) {
+    console.error('Error sending message:', err);
+    res.status(500).json({ error: 'Failed to send message' });
+  }
+});
+
+// Mark all messages in a job as read
+router.post('/jobs/:id/messages/read', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const supabase = getServiceClient();
+    const { id } = req.params;
+
+    // Use the stored function to mark messages as read
+    const { data, error } = await supabase.rpc('mark_job_messages_read', { p_job_id: id });
+
+    if (error) {
+      console.error('Error marking messages as read:', error);
+      return res.status(500).json({ error: 'Failed to mark messages as read' });
+    }
+
+    res.json({ markedCount: data || 0 });
+  } catch (err) {
+    console.error('Error marking messages as read:', err);
+    res.status(500).json({ error: 'Failed to mark messages as read' });
   }
 });
 

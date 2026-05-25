@@ -27,10 +27,17 @@ import { BacklogUploadPage, ReviewQueuePage, ReviewDetailPage } from '@/src/page
 
 // Sprint 5 Pages
 import { AnalyticsDashboardPage } from '@/src/pages/bank';
-import { RequestAppraisalPage, MyJobsPage, JobDetailPage } from '@/src/pages/marketplace';
+import { RequestAppraisalPage, MyJobsPage, JobDetailPage, PaymentCheckoutPage } from '@/src/pages/marketplace';
+
+// Bank Marketplace Pages
+import BankMarketplace from '@/src/pages/bank/Marketplace';
+import BankCart from '@/src/pages/bank/Cart';
+import PurchasedReports from '@/src/pages/bank/PurchasedReports';
+import ReportViewer from '@/src/pages/bank/ReportViewer';
 
 // Sprint 6 Pages
 import AppraiserJobsDashboard from '@/src/pages/appraiser/JobsDashboard';
+import AppraiserJobDetail from '@/src/pages/appraiser/JobDetail';
 import DeliverReportPage from '@/src/pages/appraiser/DeliverReport';
 import AppraiserPricingSettings from '@/src/pages/appraiser/PricingSettings';
 
@@ -274,6 +281,14 @@ function AppContent() {
             }
           />
           <Route
+            path="/appraiser/jobs/:id"
+            element={
+              <AppraiserRoute>
+                <AppraiserJobDetail />
+              </AppraiserRoute>
+            }
+          />
+          <Route
             path="/appraiser/jobs/:id/deliver"
             element={
               <AppraiserRoute>
@@ -331,6 +346,38 @@ function AppContent() {
               </BankRoute>
             }
           />
+          <Route
+            path="/bank/marketplace"
+            element={
+              <BankRoute>
+                <BankMarketplace />
+              </BankRoute>
+            }
+          />
+          <Route
+            path="/bank/cart"
+            element={
+              <BankRoute>
+                <BankCart />
+              </BankRoute>
+            }
+          />
+          <Route
+            path="/bank/reports"
+            element={
+              <BankRoute>
+                <PurchasedReports />
+              </BankRoute>
+            }
+          />
+          <Route
+            path="/bank/reports/:listingId"
+            element={
+              <BankRoute>
+                <ReportViewer />
+              </BankRoute>
+            }
+          />
 
           {/* Marketplace routes (any authenticated user) */}
           <Route
@@ -354,6 +401,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <JobDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/marketplace/jobs/:id/payment"
+            element={
+              <ProtectedRoute>
+                <PaymentCheckoutPage />
               </ProtectedRoute>
             }
           />
