@@ -1,0 +1,598 @@
+{
+  "common": {
+    "name": "Beit Index",
+    "tagline": "Egypt's reference for property value.",
+    "subtagline": "A platform of FRA-licensed appraisers producing standardized, bank-grade valuations — backed by the country's largest aggregated valuation index.",
+    "requestAppraisal": "Request appraisal",
+    "browseAppraisers": "Browse appraisers",
+    "learnMore": "Learn more",
+    "viewAll": "View all",
+    "licensedBy": "Licensed by the Egyptian Financial Regulatory Authority.",
+    "fra": "FRA",
+    "cbe": "Central Bank of Egypt",
+    "earea": "EAREA",
+    "search": "Search",
+    "filters": "Filters",
+    "login": "Log in",
+    "signUp": "Sign up",
+    "signup": "Create an account",
+    "logout": "Log out",
+    "dashboard": "Dashboard",
+    "loading": "Loading...",
+    "view": "View",
+    "edit": "Edit",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "save": "Save",
+    "select": "Select...",
+    "optional": "optional",
+    "ar": "العربية",
+    "en": "English",
+    "copyright": "© 2026 Beit Index. Licensed by the Egyptian Financial Regulatory Authority.",
+    "footer": {
+      "forBanks": "For Institutions",
+      "forAppraisers": "For Appraisers",
+      "forOwners": "For Owners",
+      "legal": "Legal"
+    }
+  },
+  "nav": {
+    "directory": "Appraisers",
+    "methodology": "Methodology",
+    "about": "About",
+    "contact": "Contact"
+  },
+  "hero": {
+    "eyebrow": "EGYPT · Q2 2026",
+    "headline": "Egypt's reference for property value.",
+    "subheadline": "Professional valuations you can trust. Indexed, verified, and bank-ready.",
+    "stats": {
+      "fra": "FRA Licensed",
+      "indexed": "850k+ Valuations Indexed",
+      "coverage": "All Cairo Zones"
+    },
+    "chart": {
+      "eyebrow": "BEIT INDEX · NEW CAIRO RESIDENTIAL",
+      "live": "LIVE",
+      "perSqM": "per m²",
+      "vsQ1": "vs Q1 2026"
+    }
+  },
+  "authority": {
+    "referencedBy": "REFERENCED BY"
+  },
+  "sections": {
+    "banks": {
+      "eyebrow": "FOR INSTITUTIONS",
+      "title": "Reduce loan-to-value risk with the Egyptian market's most rigorous valuation network.",
+      "f1": "FRA-licensed appraisers, identity-verified, audited",
+      "f2": "Standardized FRA-2015 methodology across every report",
+      "f3": "Aggregate market intelligence by zone, property type, and quarter",
+      "cta": "Talk to our team"
+    },
+    "appraisers": {
+      "eyebrow": "FOR LICENSED APPRAISERS",
+      "title": "Standardize your reports. Spend more time appraising, less on paperwork.",
+      "f1": "Pre-built FRA-compliant templates — no more Excel",
+      "f2": "Reach banks and institutional clients directly",
+      "f3": "Keep your full backlog organized and searchable",
+      "cta": "Join the network"
+    },
+    "owners": {
+      "eyebrow": "FOR PROPERTY OWNERS",
+      "title": "Get a credible valuation from a verified appraiser, on your schedule.",
+      "f1": "Verified, FRA-licensed appraisers only",
+      "f2": "Transparent pricing and availability",
+      "f3": "Bank-grade report you can use anywhere",
+      "cta": "Find an appraiser"
+    }
+  },
+  "featured": {
+    "title": "Featured appraisers"
+  },
+  "methodology": {
+    "title": "Standardized, defensible, repeatable.",
+    "subtitle": "Our methodology aligns with international RICS standards and FRA-2015 local requirements.",
+    "cta": "Read our methodology",
+    "visualLabel": "On the Villa Solia example, our four methods produced values spanning 2.96M to 26M EGP — and our engine reproduces the reconciled figure to the second decimal."
+  },
+  "finalCta": {
+    "title": "Built for the next decade of Egyptian real estate.",
+    "join": "Join as appraiser"
+  },
+  "directory": {
+    "title": "Verified appraisers",
+    "subheadline": "Browse Egypt's network of FRA-licensed appraisal professionals.",
+    "showing": "Showing {{count}} verified appraisers",
+    "filters": {
+      "governorate": "Governorate",
+      "propertyType": "Property Type",
+      "experience": "Experience",
+      "sortBy": "Sort by"
+    }
+  },
+  "profile": {
+    "tabs": {
+      "about": "About",
+      "specialties": "Specialties",
+      "areas": "Service areas",
+      "work": "Sample work",
+      "reviews": "Reviews"
+    },
+    "card": {
+      "turnaround": "Typical turnaround",
+      "startingAt": "Starting at",
+      "available": "Available",
+      "disclaimer": "You'll be asked to sign in or create an account to continue.",
+      "message": "Send a message",
+      "viewProfile": "View Profile"
+    },
+    "anonymized": "This report data is anonymized to protect client privacy."
+  },
+  "auth": {
+    "login": {
+      "title": "Log in",
+      "email": "Email address",
+      "password": "Password",
+      "forgot": "Forgot password?",
+      "or": "or",
+      "google": "Continue with Google",
+      "footer": "New to Beit Index? Create an account"
+    },
+    "signup": {
+      "title": "Create an account",
+      "name": "Full name",
+      "role": "Role",
+      "roles": {
+        "owner": "I'm a property owner",
+        "appraiser": "I'm an appraiser",
+        "bank": "I'm with a bank"
+      },
+      "footer": "Already have an account? Log in"
+    },
+    "emailConfirmation": {
+      "title": "Check your email",
+      "message": "We've sent a confirmation link to {{email}}. Please check your inbox and click the link to verify your account.",
+      "spam": "Don't see it? Check your spam folder.",
+      "resend": "Resend confirmation email"
+    },
+    "comingSoon": "Auth coming in next sprint"
+  },
+  "dashboard": {
+    "title": "Reports",
+    "subtitle": "Manage your appraisal reports",
+    "untitledReport": "Untitled Report",
+    "reportStatus": {
+      "draft": "Draft",
+      "submitted": "Submitted",
+      "finalized": "Finalized",
+      "archived": "Archived"
+    },
+    "status": {
+      "verified": "Verified",
+      "pending": "Pending Verification",
+      "rejected": "Verification Rejected"
+    },
+    "stats": {
+      "all": "All",
+      "drafts": "Drafts",
+      "finalized": "Finalized",
+      "archived": "Archived"
+    },
+    "table": {
+      "projectAddress": "Project / Address",
+      "client": "Client",
+      "status": "Status",
+      "value": "Value",
+      "lastUpdated": "Last Updated",
+      "actions": "Actions"
+    },
+    "empty": {
+      "title": "No reports yet",
+      "titleFiltered": "No {{status}} reports",
+      "message": "Create your first appraisal report to get started.",
+      "messageFiltered": "You don't have any reports with {{status}} status."
+    },
+    "newReport": {
+      "title": "Create New Report",
+      "propertyType": "Property Type",
+      "projectName": "Project / Compound Name (Optional)",
+      "addressDescription": "Address Description",
+      "addressPlaceholder": "Enter the property address...",
+      "addressRequired": "Address description is required",
+      "creating": "Creating...",
+      "create": "Create Report",
+      "cancel": "Cancel"
+    }
+  },
+  "reports": {
+    "backToDashboard": "Back to Dashboard",
+    "saveDraft": "Save Draft",
+    "saving": "Saving...",
+    "finalize": "Finalize Report",
+    "downloadPdf": "Download PDF",
+    "unsavedChanges": "Unsaved changes",
+    "saved": "Saved",
+    "liveCalculations": "Live Calculations",
+    "chosen": "Chosen",
+    "sections": {
+      "identification": "Identification",
+      "physical": "Physical",
+      "market": "Market Study",
+      "cost": "Cost Approach",
+      "sales": "Sales Comparison",
+      "income": "Income Approach",
+      "grm": "GRM",
+      "reconciliation": "Reconciliation",
+      "photos": "Photos",
+      "declarations": "Declarations"
+    },
+    "identification": {
+      "title": "Identification",
+      "projectName": "Project / Compound Name",
+      "reportKind": "Report Kind",
+      "tenancy": "Tenancy",
+      "clientName": "Client Name",
+      "ownerName": "Owner Name",
+      "appraisalDate": "Appraisal Date",
+      "validUntil": "Valid Until",
+      "reportKinds": {
+        "brief": "Brief",
+        "narrative_limited": "Narrative (Limited)",
+        "narrative_full": "Narrative (Full)"
+      },
+      "tenancyTypes": {
+        "owner_occupied": "Owner Occupied",
+        "vacant": "Vacant",
+        "rented": "Rented"
+      }
+    },
+    "physical": {
+      "title": "Physical Characteristics",
+      "projectLandArea": "Project Land Area (m²)",
+      "unitGrossArea": "Unit Gross Area (m²)",
+      "unitNetArea": "Unit Net Area (m²)",
+      "unitLandShare": "Unit Land Share (m²)",
+      "servicesSharePercent": "Services Share %",
+      "currentAge": "Current Age (years)",
+      "economicLife": "Economic Life (years)",
+      "effectiveAge": "Effective Age (years)",
+      "bedrooms": "Bedrooms",
+      "bathrooms": "Bathrooms",
+      "totalRooms": "Total Rooms",
+      "hasPool": "Has Pool",
+      "orientation": "Orientation",
+      "finishingLevel": "Finishing Level",
+      "finishingLevels": {
+        "luxury": "Luxury",
+        "super_lux": "Super Lux",
+        "full": "Full Finishing",
+        "half": "Half Finishing",
+        "shell": "Shell"
+      }
+    },
+    "market": {
+      "title": "Market Study",
+      "buildingHalfFinish": "Building (Half Finish)",
+      "buildingFullFinish": "Building (Full Finish)",
+      "landPrices": "Land Prices",
+      "servicesPrices": "Services Prices",
+      "low": "Low",
+      "high": "High",
+      "marketNotes": "Market Notes",
+      "perSqm": "per m²"
+    },
+    "cost": {
+      "title": "Cost Approach",
+      "landPricePerSqm": "Land Price per m²",
+      "allowedFloors": "Allowed Floors",
+      "currentFloors": "Current Floors",
+      "totalBuiltArea": "Total Built Area (m²)",
+      "unitAreaToValue": "Unit Area to Value (m²)",
+      "constructionPerSqm": "Construction Cost per m²",
+      "repairableDepreciation": "Repairable Depreciation",
+      "gardenValue": "Garden Value",
+      "garageValue": "Garage Value",
+      "storageValue": "Storage Value",
+      "totalValue": "Cost Approach Total"
+    },
+    "sales": {
+      "title": "Sales Comparison",
+      "subjectBuildingArea": "Subject Building Area (m²)",
+      "subjectLandArea": "Subject Land Area (m²)",
+      "comparables": "Comparables",
+      "addComparable": "Add Comparable",
+      "editComparable": "Edit Comparable",
+      "saveComparable": "Save Comparable",
+      "noComparables": "No comparables added yet",
+      "addFirstComparable": "Add your first comparable",
+      "address": "Address",
+      "addressPlaceholder": "e.g., 15 Ahmed Orabi St, Mohandessin",
+      "source": "Source",
+      "sourcePlaceholder": "e.g., OLX, Aqarmap, Direct",
+      "proximity": "Proximity",
+      "floor": "Floor",
+      "floorPlaceholder": "e.g., Ground, 3rd",
+      "saleTiming": "Sale Timing",
+      "ageYears": "Age (years)",
+      "paymentTerms": "Payment Terms",
+      "condition": "Condition",
+      "conditionPlaceholder": "e.g., Excellent, Good",
+      "locationQuality": "Location Quality",
+      "garageShare": "Garage Share",
+      "buildingArea": "Building Area (m²)",
+      "landArea": "Land Area (m²)",
+      "buildingPricePerSqm": "Building Price per m²",
+      "finishingPlaceholder": "e.g., Super Lux, Full",
+      "salePrice": "Sale Price",
+      "derivedLandValue": "Derived Land Value",
+      "weight": "Weight",
+      "salesNarrative": "Sales Narrative",
+      "finalValue": "Sales Comparison Total",
+      "saleTimings": {
+        "current_offer": "Current Offer",
+        "recent_sale": "Recent Sale",
+        "historical": "Historical"
+      },
+      "paymentTermsOptions": {
+        "cash": "Cash",
+        "installments": "Installments",
+        "mortgage": "Mortgage"
+      }
+    },
+    "income": {
+      "title": "Income Capitalization",
+      "monthlyRent": "Monthly Rent",
+      "vacancyRate": "Vacancy Rate %",
+      "remainingLife": "Remaining Life (years)",
+      "interestRate": "Interest Rate %",
+      "totalValue": "Income Approach Total"
+    },
+    "grm": {
+      "title": "Gross Rent Multiplier",
+      "monthlyRent": "Monthly Rent",
+      "multiplier": "GRM Multiplier",
+      "vacancyAmount": "Vacancy Amount",
+      "totalValue": "GRM Total"
+    },
+    "reconciliation": {
+      "title": "Reconciliation",
+      "chosenMethod": "Chosen Method",
+      "rationale": "Rationale",
+      "rationalePlaceholder": "Explain why this method was chosen...",
+      "finalValue": "Final Value",
+      "landValue": "Land Value",
+      "buildingValue": "Building Value",
+      "monthlyRentReconciled": "Monthly Rent (Reconciled)",
+      "methods": {
+        "cost": "Cost Approach",
+        "sales_comparison": "Sales Comparison",
+        "income": "Income Capitalization",
+        "grm": "Gross Rent Multiplier"
+      }
+    },
+    "photos": {
+      "title": "Photos",
+      "uploadPhotos": "Upload Photo",
+      "uploading": "Uploading...",
+      "dragDrop": "Drag and drop photos here, or click to select",
+      "category": "Category",
+      "caption": "Caption",
+      "captionPlaceholder": "Describe this photo...",
+      "maxSize": "Max 10MB. JPG, PNG, or WebP.",
+      "noPhotos": "No photos uploaded yet",
+      "deletePhoto": "Delete photo",
+      "categories": {
+        "facade": "Facade",
+        "entrance": "Entrance",
+        "living_room": "Living Room",
+        "bedroom": "Bedroom",
+        "bathroom": "Bathroom",
+        "kitchen": "Kitchen",
+        "balcony": "Balcony",
+        "garden": "Garden",
+        "pool": "Pool",
+        "garage": "Garage",
+        "roof": "Roof",
+        "street_view": "Street View",
+        "location_map": "Location Map",
+        "other": "Other"
+      }
+    },
+    "declarations": {
+      "title": "Declarations",
+      "appraiserDeclaration": "Appraiser Declaration",
+      "declarationText": "I certify that the statements of fact contained in this report are true and correct. The reported analyses, opinions, and conclusions are limited only by the reported assumptions and limiting conditions, and are my personal, impartial, and unbiased professional analyses, opinions, and conclusions."
+    },
+    "errors": {
+      "loadFailed": "Failed to load report",
+      "saveFailed": "Failed to save report",
+      "versionConflict": "This report has been modified by another session. Please refresh and try again.",
+      "finalizeFailed": "Failed to finalize report"
+    },
+    "status": {
+      "draft": "Draft",
+      "submitted": "Submitted",
+      "finalized": "Finalized",
+      "archived": "Archived"
+    }
+  },
+  "propertyTypes": {
+    "apartment": "Apartment",
+    "villa": "Villa",
+    "duplex": "Duplex",
+    "compoundUnit": "Compound Unit",
+    "roof": "Roof",
+    "commercial": "Commercial",
+    "office": "Office",
+    "building": "Building"
+  },
+  "onboarding": {
+    "steps": {
+      "personal": "Personal info",
+      "fraLicense": "FRA License",
+      "nationalId": "National ID",
+      "serviceAreas": "Service areas",
+      "specialties": "Specialties",
+      "finalDetails": "Final details"
+    },
+    "personal": {
+      "title": "Personal information",
+      "fullNameEn": "Full name (English)",
+      "fullNameAr": "Full name (Arabic)",
+      "phone": "Phone number",
+      "phonePlaceholder": "+20 10 XXXX XXXX",
+      "yearsExperience": "Years of experience",
+      "professionalTitle": "Professional title",
+      "professionalTitlePlaceholder": "Senior Real Estate Appraiser",
+      "photo": "Profile photo",
+      "uploadPhoto": "Upload photo"
+    },
+    "fraLicense": {
+      "title": "FRA License verification",
+      "licenseNumber": "FRA License number",
+      "issueDate": "Issue date",
+      "expiryDate": "Expiry date",
+      "uploadFront": "Upload license document",
+      "uploadHint": "Clear photo or scan of your FRA license"
+    },
+    "nationalId": {
+      "title": "National ID verification",
+      "idNumber": "National ID number",
+      "uploadFront": "Front side",
+      "uploadBack": "Back side",
+      "uploadHint": "Clear photo or scan"
+    },
+    "serviceAreas": {
+      "title": "Service areas",
+      "subtitle": "Select the districts where you provide appraisal services",
+      "selectAll": "Select all",
+      "deselectAll": "Deselect all"
+    },
+    "specialties": {
+      "title": "Property specialties",
+      "subtitle": "Select the property types you specialize in"
+    },
+    "finalDetails": {
+      "title": "Final details",
+      "bioEn": "Bio (English)",
+      "bioAr": "Bio (Arabic)",
+      "bioPlaceholder": "Write a professional summary of your experience and expertise...",
+      "bioHint": "{{count}} / 1000 characters",
+      "startingPrice": "Starting price (EGP)",
+      "turnaround": "Turnaround (days)",
+      "availability": "Availability",
+      "availabilityOptions": {
+        "thisWeek": "This week",
+        "nextWeek": "Next week",
+        "twoWeeks": "Two weeks out"
+      },
+      "signature": "Digital signature",
+      "stamp": "Official stamp",
+      "uploadSignature": "Upload signature",
+      "uploadStamp": "Upload stamp",
+      "codeOfConduct": "I confirm all submitted documents are authentic, my FRA license is current and in good standing, and I agree to the Beit Index Code of Professional Conduct."
+    },
+    "review": {
+      "title": "Review your information",
+      "name": "Name",
+      "phone": "Phone",
+      "experience": "Experience",
+      "yearsLabel": "{{count}} years",
+      "licenseNumber": "License #",
+      "expiry": "Expiry",
+      "edit": "Edit"
+    },
+    "buttons": {
+      "next": "Next",
+      "back": "Back",
+      "submit": "Submit for review",
+      "saving": "Saving...",
+      "submitting": "Submitting..."
+    },
+    "errors": {
+      "nameRequired": "Name is required",
+      "phoneInvalid": "Enter a valid Egyptian phone number (+20 1XXXXXXXXX)",
+      "experienceMin": "Must have at least 1 year of experience",
+      "titleRequired": "Enter a professional title",
+      "issueDateRequired": "Issue date is required",
+      "expiryDateRequired": "Expiry date is required",
+      "idLength": "National ID must be 14 digits",
+      "idNumbers": "Only numbers allowed",
+      "areaRequired": "Select at least one service area",
+      "specialtyRequired": "Select at least one specialty",
+      "bioMin": "Bio must be at least 100 characters",
+      "bioMax": "Bio cannot exceed 1000 characters",
+      "priceMin": "Minimum price is 500 EGP",
+      "turnaroundMin": "Minimum 1 day",
+      "turnaroundMax": "Maximum 30 days",
+      "conductRequired": "You must accept the code of conduct",
+      "uploadFailed": "Failed to upload file. Please try again."
+    }
+  },
+  "backlog": {
+    "title": "Import Backlog",
+    "subtitle": "Upload historical Excel or PDF reports to import into the system",
+    "reviewQueue": "Review Queue",
+    "reviewQueueSubtitle": "Review and approve imported reports before they are finalized",
+    "uploading": "Uploading files...",
+    "dropzone": {
+      "title": "Drop files here or click to upload",
+      "subtitle": "Supports Excel (.xlsx, .xls) and PDF files"
+    },
+    "uploadExcel": "Upload Excel",
+    "uploadPdf": "Upload PDF",
+    "engineMatch": "engine match",
+    "review": "Review",
+    "viewReport": "View Report",
+    "backToUpload": "Back to Upload",
+    "empty": {
+      "title": "No imports yet",
+      "subtitle": "Upload Excel or PDF files to get started"
+    },
+    "reviewEmpty": {
+      "title": "No reports to review",
+      "subtitle": "All imported reports have been processed"
+    },
+    "status": {
+      "queued": "Queued",
+      "parsing": "Processing",
+      "auto_approved": "Auto-Approved",
+      "pending_review": "Pending Review",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "parse_failed": "Failed"
+    },
+    "uploadedAt": "Uploaded",
+    "preview": {
+      "clientName": "Client",
+      "propertyType": "Property Type",
+      "area": "Area (sqm)",
+      "finalValue": "Final Value"
+    },
+    "warningsCount": "{{count}} warnings",
+    "reviewImport": "Review Import",
+    "viewSource": "View Source",
+    "reject": "Reject",
+    "approve": "Approve & Create Report",
+    "sourceFile": "Source File",
+    "openInNewTab": "Open in New Tab",
+    "excelPreviewUnavailable": "Excel preview not available. Click \"Open in New Tab\" to download.",
+    "extractedData": "Extracted Data",
+    "parserWarnings": "Parser Warnings",
+    "engineVerification": "Engine Verification",
+    "engineMatchLabel": "Calculation Match",
+    "matchExcellent": "Excellent match - calculations verified",
+    "matchGood": "Good match - minor discrepancies detected",
+    "matchPoor": "Significant discrepancies - review carefully",
+    "discrepancies": "Discrepancies",
+    "typedValue": "Typed",
+    "computedValue": "Computed",
+    "computedValues": "Engine Computed Values",
+    "rejectImport": "Reject Import",
+    "rejectDescription": "Please provide a reason for rejecting this import. The file will be kept but no report will be created.",
+    "rejectReasonPlaceholder": "Enter reason for rejection...",
+    "confirmReject": "Reject Import",
+    "notFound": "Import not found"
+  }
+}

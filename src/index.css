@@ -1,0 +1,98 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&family=El+Messiri:wght@500&family=Tajawal:wght@400;500&family=JetBrains+Mono&display=swap');
+@import "tailwindcss";
+
+@theme {
+  /* Brand Colors */
+  --color-emerald-50: #EAF5EE;
+  --color-emerald-100: #C7E4D2;
+  --color-emerald-200: #9FCFB1;
+  --color-emerald-300: #6FB68B;
+  --color-emerald-400: #3F9C64;
+  --color-emerald-500: #0B5D3B; /* primary brand */
+  --color-emerald-600: #094C30;
+  --color-emerald-700: #073B25;
+  --color-emerald-800: #052A1B;
+  --color-emerald-900: #031A11;
+
+  /* Cream / Paper */
+  --color-cream-50: #FDFCF8;
+  --color-cream-100: #FAF7F0; /* page background */
+  --color-cream-200: #F4EFE2;
+  --color-cream-300: #EBE3CE;
+  --color-cream-400: #D9CCAE;
+
+  /* Ink (Text) */
+  --color-ink-50: #F2F1ED;
+  --color-ink-100: #D9D6CC;
+  --color-ink-200: #A8A39A;
+  --color-ink-300: #6F6B63;
+  --color-ink-400: #3D3A35;
+  --color-ink-500: #1F1D1A;
+  --color-ink-600: #0F1F1A; /* primary text */
+  --color-ink-700: #0A1612;
+  --color-ink-800: #050B09;
+
+  --color-gold: #B8985A;
+  --color-signal-up: #0B5D3B;
+  --color-signal-down: #A33A2E;
+  --color-signal-flat: #6F6B63;
+
+  /* Typography */
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Newsreader", ui-serif, Georgia, serif;
+  --font-arabic-sans: "Tajawal", "Inter", sans-serif;
+  --font-arabic-serif: "El Messiri", "Newsreader", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Spacing & Borders */
+  --radius-xs: 4px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+}
+
+@layer base {
+  body {
+    @apply bg-cream-100 text-ink-600 font-sans antialiased;
+    font-size: 15px;
+    line-height: 1.55;
+  }
+
+  h1, h2, h3 {
+    @apply font-serif font-medium tracking-tight;
+  }
+
+  [dir="rtl"] body {
+    @apply font-arabic-sans;
+  }
+  
+  [dir="rtl"] h1, [dir="rtl"] h2, [dir="rtl"] h3 {
+    @apply font-arabic-serif;
+  }
+}
+
+/* Custom Text Scale & Theme Classes */
+@layer components {
+  .text-h1 { @apply text-[56px] leading-[1.05] -tracking-[0.02em] font-serif font-medium; }
+  .text-h2 { @apply text-[36px] leading-[1.1] -tracking-[0.015em] font-serif font-medium; }
+  .text-h3 { @apply text-[24px] leading-[1.25] -tracking-[0.01em] font-serif font-medium; }
+  .text-h4 { @apply text-[18px] leading-[1.3] tracking-normal font-sans font-medium; }
+  .text-body-l { @apply text-[17px] leading-[1.55] tracking-normal font-sans font-normal; }
+  .text-body-m { @apply text-[15px] leading-[1.55] tracking-normal font-sans font-normal; }
+  .text-body-s { @apply text-[13px] leading-[1.5] tracking-normal font-sans font-normal; }
+  
+  .eyebrow { 
+    @apply text-[11px] leading-[1.4] tracking-[0.12em] uppercase font-sans font-medium text-emerald-500; 
+  }
+  
+  .border-hairline {
+    @apply border-[0.5px] border-ink-100;
+  }
+
+  .text-mono-s { @apply text-[12px] leading-[1.4] tracking-normal font-mono; }
+}
+
+/* Arabic adjustments */
+[dir="rtl"] .text-h1 { font-variation-settings: normal; }
+[dir="rtl"] .text-h1, [dir="rtl"] .text-h2, [dir="rtl"] .text-h3 { @apply font-arabic-serif; }
+[dir="rtl"] .font-sans { @apply font-arabic-sans; }

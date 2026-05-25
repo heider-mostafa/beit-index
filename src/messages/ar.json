@@ -1,0 +1,598 @@
+{
+  "common": {
+    "name": "بيت إندكس",
+    "tagline": "مرجع مصر لقيم العقارات.",
+    "subtagline": "منصة للمقمنين المرخصين من الهيئة العامة للرقابة المالية ينتجون تقييمات معيارية فئة بنكية — مدعومة بأكبر مؤشر تقييم مجمع في الدولة.",
+    "requestAppraisal": "طلب تقييم",
+    "browseAppraisers": "تصفح المقيمين",
+    "learnMore": "تعرف على المزيد",
+    "viewAll": "عرض الكل",
+    "licensedBy": "مرخص من الهيئة العامة للرقابة المالية المصرية.",
+    "fra": "الرقابة المالية",
+    "cbe": "البنك المركزي المصري",
+    "earea": "الجمعية المصرية لخبراء التقييم العقاري",
+    "search": "بحث",
+    "filters": "تصفية",
+    "login": "تسجيل الدخول",
+    "signUp": "إنشاء حساب",
+    "signup": "إنشاء حساب",
+    "logout": "تسجيل الخروج",
+    "dashboard": "لوحة التحكم",
+    "loading": "جاري التحميل...",
+    "view": "عرض",
+    "edit": "تعديل",
+    "delete": "حذف",
+    "cancel": "إلغاء",
+    "save": "حفظ",
+    "select": "اختر...",
+    "optional": "اختياري",
+    "ar": "العربية",
+    "en": "English",
+    "copyright": "© 2026 بيت إندكس. مرخص من الهيئة العامة للرقابة المالية المصرية.",
+    "footer": {
+      "forBanks": "للمؤسسات",
+      "forAppraisers": "للمقيمين",
+      "forOwners": "للملاك",
+      "legal": "قانوني"
+    }
+  },
+  "nav": {
+    "directory": "المقيمين",
+    "methodology": "المنهجية",
+    "about": "عن المنصة",
+    "contact": "اتصل بنا"
+  },
+  "hero": {
+    "eyebrow": "مصر · الربع الثاني 2026",
+    "headline": "مرجع مصر لقيم العقارات.",
+    "subheadline": "تقييمات مهنية يمكنك الوثوق بها. مؤرشفة، موثقة، وجاهزة للبنوك.",
+    "stats": {
+      "fra": "مرخص من الهيئة",
+      "indexed": "+850 ألف تقييم مؤرشف",
+      "coverage": "تغطية كامل مناطق القاهرة"
+    },
+    "chart": {
+      "eyebrow": "بيت إندكس · سكني القاهرة الجديدة",
+      "live": "مباشر",
+      "perSqM": "لكل متر مربع",
+      "vsQ1": "مقارنة بالربع الأول 2026"
+    }
+  },
+  "authority": {
+    "referencedBy": "مرجع معتمد لدى"
+  },
+  "sections": {
+    "banks": {
+      "eyebrow": "للمؤسسات",
+      "title": "قلل مخاطر القرض مقابل القيمة مع أكثر شبكة تقييم عقاري صرامة في السوق المصري.",
+      "f1": "مقيمون مرخصون، موثقو الهوية، مدققون",
+      "f2": "منهجية FRA-2015 الموحدة في كل تقرير",
+      "f3": "ذكاء سوقي مجمع حسب المنطقة ونوع العقار والربع السنوي",
+      "cta": "تحدث مع فريقنا"
+    },
+    "appraisers": {
+      "eyebrow": "للمقيمين المرخصين",
+      "title": "وحد تقاريرك. اقضِ وقتاً أطول في التقييم، ووقتاً أقل في الأوراق.",
+      "f1": "نماذج متوافقة مع الهيئة — وداعاً للإكسل",
+      "f2": "تواصل مع البنوك والعملاء المؤسسيين مباشرة",
+      "f3": "حافظ على سجلك الكامل منظماً وقابلاً للبحث",
+      "cta": "انضم إلى الشبكة"
+    },
+    "owners": {
+      "eyebrow": "لملاك العقارات",
+      "title": "احصل على تقييم موثوق من مقيم معتمد، حسب جدولك الزمني.",
+      "f1": "مقيمون موثقون ومرخصون فقط",
+      "f2": "شفافية في الأسعار والتوافر",
+      "f3": "تقرير فئة بنكية يمكنك استخدامه في أي مكان",
+      "cta": "ابحث عن مقيم"
+    }
+  },
+  "featured": {
+    "title": "مقيمون متميزون"
+  },
+  "methodology": {
+    "title": "معياري، قابل للدفاع، وقابل للتكرار.",
+    "subtitle": "تتماشى منهجيتنا مع معايير RICS الدولية ومتطلبات FRA-2015 المحلية.",
+    "cta": "اقرأ منهجيتنا",
+    "visualLabel": "في مثال Villa Solia، أنتجت طرقنا الأربع قيمًا تتراوح بين 2.96 مليون إلى 26 مليون ج.م — ويقوم محركنا بإعادة إنتاج الرقم المتوافق عليه حتى المنزلة العشرية الثانية."
+  },
+  "finalCta": {
+    "title": "بُني للعقد القادم من العقارات المصرية.",
+    "join": "انضم كمقيم"
+  },
+  "directory": {
+    "title": "مقيمون معتمدون",
+    "subheadline": "تصفح شبكة مصر من خبراء التقييم المرخصين.",
+    "showing": "عرض {{count}} مقيم معتمد",
+    "filters": {
+      "governorate": "المحافظة",
+      "propertyType": "نوع العقار",
+      "experience": "الخبرة",
+      "sortBy": "ترتيب حسب"
+    }
+  },
+  "profile": {
+    "tabs": {
+      "about": "عن المقيم",
+      "specialties": "التخصصات",
+      "areas": "مناطق الخدمة",
+      "work": "نماذج أعمال",
+      "reviews": "التقييمات"
+    },
+    "card": {
+      "turnaround": "مدة الإنجاز المعتادة",
+      "startingAt": "يبدأ من",
+      "available": "متاح",
+      "disclaimer": "سيُطلب منك تسجيل الدخول أو إنشاء حساب للمتابعة.",
+      "message": "إرسال رسالة",
+      "viewProfile": "عرض الملف الشخصي"
+    },
+    "anonymized": "تم تجهيل بيانات التقرير لحماية خصوصية العميل."
+  },
+  "auth": {
+    "login": {
+      "title": "تسجيل الدخول",
+      "email": "البريد الإلكتروني",
+      "password": "كلمة المرور",
+      "forgot": "نسيت كلمة المرور؟",
+      "or": "أو",
+      "google": "المتابعة باستخدام جوجل",
+      "footer": "جديد في بيت إندكس؟ أنشئ حساباً"
+    },
+    "signup": {
+      "title": "إنشاء حساب",
+      "name": "الاسم الكامل",
+      "role": "الدور",
+      "roles": {
+        "owner": "أنا مالك عقار",
+        "appraiser": "أنا مقيم عقاري",
+        "bank": "أنا من بنك/مؤسسة"
+      },
+      "footer": "لديك حساب بالفعل؟ سجل دخولك"
+    },
+    "emailConfirmation": {
+      "title": "تحقق من بريدك الإلكتروني",
+      "message": "لقد أرسلنا رابط تأكيد إلى {{email}}. يرجى التحقق من بريدك الوارد والنقر على الرابط لتفعيل حسابك.",
+      "spam": "لم تجده؟ تحقق من مجلد البريد المزعج.",
+      "resend": "إعادة إرسال بريد التأكيد"
+    },
+    "comingSoon": "خدمة التوثيق ستتوفر في المرحلة القادمة"
+  },
+  "dashboard": {
+    "title": "التقارير",
+    "subtitle": "إدارة تقارير التقييم الخاصة بك",
+    "untitledReport": "تقرير بدون عنوان",
+    "reportStatus": {
+      "draft": "مسودة",
+      "submitted": "مقدم",
+      "finalized": "مكتمل",
+      "archived": "مؤرشف"
+    },
+    "status": {
+      "verified": "موثق",
+      "pending": "في انتظار التوثيق",
+      "rejected": "تم رفض التوثيق"
+    },
+    "stats": {
+      "all": "الكل",
+      "drafts": "مسودات",
+      "finalized": "مكتملة",
+      "archived": "مؤرشفة"
+    },
+    "table": {
+      "projectAddress": "المشروع / العنوان",
+      "client": "العميل",
+      "status": "الحالة",
+      "value": "القيمة",
+      "lastUpdated": "آخر تحديث",
+      "actions": "الإجراءات"
+    },
+    "empty": {
+      "title": "لا توجد تقارير بعد",
+      "titleFiltered": "لا توجد تقارير {{status}}",
+      "message": "أنشئ أول تقرير تقييم للبدء.",
+      "messageFiltered": "ليس لديك أي تقارير بحالة {{status}}."
+    },
+    "newReport": {
+      "title": "إنشاء تقرير جديد",
+      "propertyType": "نوع العقار",
+      "projectName": "اسم المشروع / الكمبوند (اختياري)",
+      "addressDescription": "وصف العنوان",
+      "addressPlaceholder": "أدخل عنوان العقار...",
+      "addressRequired": "وصف العنوان مطلوب",
+      "creating": "جاري الإنشاء...",
+      "create": "إنشاء التقرير",
+      "cancel": "إلغاء"
+    }
+  },
+  "reports": {
+    "backToDashboard": "العودة للوحة التحكم",
+    "saveDraft": "حفظ المسودة",
+    "saving": "جاري الحفظ...",
+    "finalize": "إنهاء التقرير",
+    "downloadPdf": "تحميل PDF",
+    "unsavedChanges": "تغييرات غير محفوظة",
+    "saved": "تم الحفظ",
+    "liveCalculations": "الحسابات المباشرة",
+    "chosen": "مختار",
+    "sections": {
+      "identification": "التعريف",
+      "physical": "الخصائص الفيزيائية",
+      "market": "دراسة السوق",
+      "cost": "طريقة التكلفة",
+      "sales": "المقارنة البيعية",
+      "income": "طريقة الدخل",
+      "grm": "مضاعف الإيجار",
+      "reconciliation": "التسوية",
+      "photos": "الصور",
+      "declarations": "الإقرارات"
+    },
+    "identification": {
+      "title": "التعريف",
+      "projectName": "اسم المشروع / الكمبوند",
+      "reportKind": "نوع التقرير",
+      "tenancy": "حالة الإشغال",
+      "clientName": "اسم العميل",
+      "ownerName": "اسم المالك",
+      "appraisalDate": "تاريخ التقييم",
+      "validUntil": "صالح حتى",
+      "reportKinds": {
+        "brief": "مختصر",
+        "narrative_limited": "سردي (محدود)",
+        "narrative_full": "سردي (كامل)"
+      },
+      "tenancyTypes": {
+        "owner_occupied": "يشغله المالك",
+        "vacant": "شاغر",
+        "rented": "مؤجر"
+      }
+    },
+    "physical": {
+      "title": "الخصائص الفيزيائية",
+      "projectLandArea": "مساحة أرض المشروع (م²)",
+      "unitGrossArea": "المساحة الإجمالية للوحدة (م²)",
+      "unitNetArea": "المساحة الصافية للوحدة (م²)",
+      "unitLandShare": "حصة الوحدة من الأرض (م²)",
+      "servicesSharePercent": "نسبة الخدمات %",
+      "currentAge": "العمر الحالي (سنوات)",
+      "economicLife": "العمر الاقتصادي (سنوات)",
+      "effectiveAge": "العمر الفعلي (سنوات)",
+      "bedrooms": "غرف النوم",
+      "bathrooms": "الحمامات",
+      "totalRooms": "إجمالي الغرف",
+      "hasPool": "يوجد حمام سباحة",
+      "orientation": "الاتجاه",
+      "finishingLevel": "مستوى التشطيب",
+      "finishingLevels": {
+        "luxury": "فاخر",
+        "super_lux": "سوبر لوكس",
+        "full": "تشطيب كامل",
+        "half": "نصف تشطيب",
+        "shell": "على الطوب"
+      }
+    },
+    "market": {
+      "title": "دراسة السوق",
+      "buildingHalfFinish": "المباني (نصف تشطيب)",
+      "buildingFullFinish": "المباني (تشطيب كامل)",
+      "landPrices": "أسعار الأراضي",
+      "servicesPrices": "أسعار الخدمات",
+      "low": "أدنى",
+      "high": "أعلى",
+      "marketNotes": "ملاحظات السوق",
+      "perSqm": "للمتر المربع"
+    },
+    "cost": {
+      "title": "طريقة التكلفة",
+      "landPricePerSqm": "سعر الأرض للمتر",
+      "allowedFloors": "الأدوار المسموح بها",
+      "currentFloors": "الأدوار الحالية",
+      "totalBuiltArea": "إجمالي المساحة المبنية (م²)",
+      "unitAreaToValue": "مساحة الوحدة للتقييم (م²)",
+      "constructionPerSqm": "تكلفة البناء للمتر",
+      "repairableDepreciation": "الاستهلاك القابل للإصلاح",
+      "gardenValue": "قيمة الحديقة",
+      "garageValue": "قيمة الجراج",
+      "storageValue": "قيمة المخزن",
+      "totalValue": "إجمالي طريقة التكلفة"
+    },
+    "sales": {
+      "title": "المقارنة البيعية",
+      "subjectBuildingArea": "مساحة مبنى العقار المقيّم (م²)",
+      "subjectLandArea": "مساحة أرض العقار المقيّم (م²)",
+      "comparables": "المقارنات",
+      "addComparable": "إضافة مقارنة",
+      "editComparable": "تعديل المقارنة",
+      "saveComparable": "حفظ المقارنة",
+      "noComparables": "لم تتم إضافة مقارنات بعد",
+      "addFirstComparable": "أضف أول مقارنة",
+      "address": "العنوان",
+      "addressPlaceholder": "مثال: 15 شارع أحمد عرابي، المهندسين",
+      "source": "المصدر",
+      "sourcePlaceholder": "مثال: OLX، عقار ماب، مباشر",
+      "proximity": "القرب",
+      "floor": "الدور",
+      "floorPlaceholder": "مثال: أرضي، الثالث",
+      "saleTiming": "توقيت البيع",
+      "ageYears": "العمر (سنوات)",
+      "paymentTerms": "شروط الدفع",
+      "condition": "الحالة",
+      "conditionPlaceholder": "مثال: ممتاز، جيد",
+      "locationQuality": "جودة الموقع",
+      "garageShare": "حصة الجراج",
+      "buildingArea": "مساحة المبنى (م²)",
+      "landArea": "مساحة الأرض (م²)",
+      "buildingPricePerSqm": "سعر المبنى للمتر",
+      "finishingPlaceholder": "مثال: سوبر لوكس، تشطيب كامل",
+      "salePrice": "سعر البيع",
+      "derivedLandValue": "قيمة الأرض المشتقة",
+      "weight": "الوزن",
+      "salesNarrative": "السرد البيعي",
+      "finalValue": "إجمالي المقارنة البيعية",
+      "saleTimings": {
+        "current_offer": "عرض حالي",
+        "recent_sale": "بيع حديث",
+        "historical": "تاريخي"
+      },
+      "paymentTermsOptions": {
+        "cash": "نقدي",
+        "installments": "تقسيط",
+        "mortgage": "رهن عقاري"
+      }
+    },
+    "income": {
+      "title": "رسملة الدخل",
+      "monthlyRent": "الإيجار الشهري",
+      "vacancyRate": "نسبة الشغور %",
+      "remainingLife": "العمر المتبقي (سنوات)",
+      "interestRate": "سعر الفائدة %",
+      "totalValue": "إجمالي طريقة الدخل"
+    },
+    "grm": {
+      "title": "مضاعف الإيجار الإجمالي",
+      "monthlyRent": "الإيجار الشهري",
+      "multiplier": "المضاعف",
+      "vacancyAmount": "مبلغ الشغور",
+      "totalValue": "إجمالي مضاعف الإيجار"
+    },
+    "reconciliation": {
+      "title": "التسوية",
+      "chosenMethod": "الطريقة المختارة",
+      "rationale": "المبررات",
+      "rationalePlaceholder": "اشرح لماذا تم اختيار هذه الطريقة...",
+      "finalValue": "القيمة النهائية",
+      "landValue": "قيمة الأرض",
+      "buildingValue": "قيمة المبنى",
+      "monthlyRentReconciled": "الإيجار الشهري (المُسوّى)",
+      "methods": {
+        "cost": "طريقة التكلفة",
+        "sales_comparison": "المقارنة البيعية",
+        "income": "رسملة الدخل",
+        "grm": "مضاعف الإيجار الإجمالي"
+      }
+    },
+    "photos": {
+      "title": "الصور",
+      "uploadPhotos": "رفع صورة",
+      "uploading": "جاري الرفع...",
+      "dragDrop": "اسحب وأفلت الصور هنا، أو انقر للاختيار",
+      "category": "الفئة",
+      "caption": "الوصف",
+      "captionPlaceholder": "وصف الصورة...",
+      "maxSize": "الحد الأقصى 10 ميجابايت. JPG، PNG، أو WebP.",
+      "noPhotos": "لم يتم رفع صور بعد",
+      "deletePhoto": "حذف الصورة",
+      "categories": {
+        "facade": "الواجهة",
+        "entrance": "المدخل",
+        "living_room": "غرفة المعيشة",
+        "bedroom": "غرفة النوم",
+        "bathroom": "الحمام",
+        "kitchen": "المطبخ",
+        "balcony": "البلكونة",
+        "garden": "الحديقة",
+        "pool": "حمام السباحة",
+        "garage": "الجراج",
+        "roof": "السطح",
+        "street_view": "منظر الشارع",
+        "location_map": "خريطة الموقع",
+        "other": "أخرى"
+      }
+    },
+    "declarations": {
+      "title": "الإقرارات",
+      "appraiserDeclaration": "إقرار المقيّم",
+      "declarationText": "أشهد بأن البيانات الواردة في هذا التقرير صحيحة ودقيقة. التحليلات والآراء والاستنتاجات المذكورة محدودة فقط بالافتراضات والشروط المحددة، وهي تحليلاتي وآرائي واستنتاجاتي المهنية الشخصية والمحايدة وغير المتحيزة."
+    },
+    "errors": {
+      "loadFailed": "فشل تحميل التقرير",
+      "saveFailed": "فشل حفظ التقرير",
+      "versionConflict": "تم تعديل هذا التقرير من جلسة أخرى. يرجى تحديث الصفحة والمحاولة مرة أخرى.",
+      "finalizeFailed": "فشل إنهاء التقرير"
+    },
+    "status": {
+      "draft": "مسودة",
+      "submitted": "مقدم",
+      "finalized": "مكتمل",
+      "archived": "مؤرشف"
+    }
+  },
+  "propertyTypes": {
+    "apartment": "شقة",
+    "villa": "فيلا",
+    "duplex": "دوبلكس",
+    "compoundUnit": "وحدة كمبوند",
+    "roof": "روف",
+    "commercial": "تجاري",
+    "office": "مكتب",
+    "building": "مبنى"
+  },
+  "onboarding": {
+    "steps": {
+      "personal": "المعلومات الشخصية",
+      "fraLicense": "رخصة الهيئة",
+      "nationalId": "البطاقة الشخصية",
+      "serviceAreas": "مناطق الخدمة",
+      "specialties": "التخصصات",
+      "finalDetails": "التفاصيل النهائية"
+    },
+    "personal": {
+      "title": "المعلومات الشخصية",
+      "fullNameEn": "الاسم الكامل (بالإنجليزية)",
+      "fullNameAr": "الاسم الكامل (بالعربية)",
+      "phone": "رقم الهاتف",
+      "phonePlaceholder": "+20 10 XXXX XXXX",
+      "yearsExperience": "سنوات الخبرة",
+      "professionalTitle": "المسمى المهني",
+      "professionalTitlePlaceholder": "خبير تقييم عقاري أول",
+      "photo": "الصورة الشخصية",
+      "uploadPhoto": "رفع الصورة"
+    },
+    "fraLicense": {
+      "title": "التحقق من رخصة الهيئة",
+      "licenseNumber": "رقم رخصة الهيئة",
+      "issueDate": "تاريخ الإصدار",
+      "expiryDate": "تاريخ الانتهاء",
+      "uploadFront": "رفع وثيقة الترخيص",
+      "uploadHint": "صورة واضحة أو مسح ضوئي لرخصة الهيئة"
+    },
+    "nationalId": {
+      "title": "التحقق من البطاقة الشخصية",
+      "idNumber": "الرقم القومي",
+      "uploadFront": "الوجه الأمامي",
+      "uploadBack": "الوجه الخلفي",
+      "uploadHint": "صورة واضحة أو مسح ضوئي"
+    },
+    "serviceAreas": {
+      "title": "مناطق الخدمة",
+      "subtitle": "اختر المناطق التي تقدم فيها خدمات التقييم",
+      "selectAll": "اختيار الكل",
+      "deselectAll": "إلغاء اختيار الكل"
+    },
+    "specialties": {
+      "title": "التخصصات العقارية",
+      "subtitle": "اختر أنواع العقارات التي تتخصص فيها"
+    },
+    "finalDetails": {
+      "title": "التفاصيل النهائية",
+      "bioEn": "نبذة (بالإنجليزية)",
+      "bioAr": "نبذة (بالعربية)",
+      "bioPlaceholder": "اكتب ملخصاً مهنياً عن خبرتك وتخصصاتك...",
+      "bioHint": "{{count}} / 1000 حرف",
+      "startingPrice": "السعر المبدئي (جنيه)",
+      "turnaround": "مدة الإنجاز (أيام)",
+      "availability": "التوافر",
+      "availabilityOptions": {
+        "thisWeek": "هذا الأسبوع",
+        "nextWeek": "الأسبوع القادم",
+        "twoWeeks": "خلال أسبوعين"
+      },
+      "signature": "التوقيع الرقمي",
+      "stamp": "الختم الرسمي",
+      "uploadSignature": "رفع التوقيع",
+      "uploadStamp": "رفع الختم",
+      "codeOfConduct": "أؤكد أن جميع الوثائق المقدمة أصلية، وأن رخصتي من الهيئة سارية وفي وضع جيد، وأوافق على ميثاق السلوك المهني لبيت إندكس."
+    },
+    "review": {
+      "title": "مراجعة معلوماتك",
+      "name": "الاسم",
+      "phone": "الهاتف",
+      "experience": "الخبرة",
+      "yearsLabel": "{{count}} سنوات",
+      "licenseNumber": "رقم الرخصة",
+      "expiry": "تاريخ الانتهاء",
+      "edit": "تعديل"
+    },
+    "buttons": {
+      "next": "التالي",
+      "back": "السابق",
+      "submit": "تقديم للمراجعة",
+      "saving": "جاري الحفظ...",
+      "submitting": "جاري التقديم..."
+    },
+    "errors": {
+      "nameRequired": "الاسم مطلوب",
+      "phoneInvalid": "أدخل رقم هاتف مصري صحيح (+20 1XXXXXXXXX)",
+      "experienceMin": "يجب أن يكون لديك سنة خبرة على الأقل",
+      "titleRequired": "أدخل المسمى المهني",
+      "issueDateRequired": "تاريخ الإصدار مطلوب",
+      "expiryDateRequired": "تاريخ الانتهاء مطلوب",
+      "idLength": "الرقم القومي يجب أن يكون 14 رقماً",
+      "idNumbers": "أرقام فقط",
+      "areaRequired": "اختر منطقة خدمة واحدة على الأقل",
+      "specialtyRequired": "اختر تخصصاً واحداً على الأقل",
+      "bioMin": "النبذة يجب أن تكون 100 حرف على الأقل",
+      "bioMax": "النبذة لا يمكن أن تتجاوز 1000 حرف",
+      "priceMin": "الحد الأدنى للسعر 500 جنيه",
+      "turnaroundMin": "الحد الأدنى يوم واحد",
+      "turnaroundMax": "الحد الأقصى 30 يوماً",
+      "conductRequired": "يجب الموافقة على ميثاق السلوك",
+      "uploadFailed": "فشل رفع الملف. حاول مرة أخرى."
+    }
+  },
+  "backlog": {
+    "title": "استيراد الأرشيف",
+    "subtitle": "قم برفع تقارير Excel أو PDF السابقة لاستيرادها إلى النظام",
+    "reviewQueue": "قائمة المراجعة",
+    "reviewQueueSubtitle": "راجع ووافق على التقارير المستوردة قبل اعتمادها",
+    "uploading": "جاري رفع الملفات...",
+    "dropzone": {
+      "title": "أسقط الملفات هنا أو انقر للرفع",
+      "subtitle": "يدعم ملفات Excel (.xlsx, .xls) و PDF"
+    },
+    "uploadExcel": "رفع Excel",
+    "uploadPdf": "رفع PDF",
+    "engineMatch": "تطابق المحرك",
+    "review": "مراجعة",
+    "viewReport": "عرض التقرير",
+    "backToUpload": "العودة للرفع",
+    "empty": {
+      "title": "لا توجد استيرادات بعد",
+      "subtitle": "قم برفع ملفات Excel أو PDF للبدء"
+    },
+    "reviewEmpty": {
+      "title": "لا توجد تقارير للمراجعة",
+      "subtitle": "تمت معالجة جميع التقارير المستوردة"
+    },
+    "status": {
+      "queued": "في الانتظار",
+      "parsing": "جاري المعالجة",
+      "auto_approved": "موافقة تلقائية",
+      "pending_review": "بانتظار المراجعة",
+      "approved": "تمت الموافقة",
+      "rejected": "مرفوض",
+      "parse_failed": "فشل"
+    },
+    "uploadedAt": "تم الرفع",
+    "preview": {
+      "clientName": "العميل",
+      "propertyType": "نوع العقار",
+      "area": "المساحة (م²)",
+      "finalValue": "القيمة النهائية"
+    },
+    "warningsCount": "{{count}} تحذيرات",
+    "reviewImport": "مراجعة الاستيراد",
+    "viewSource": "عرض المصدر",
+    "reject": "رفض",
+    "approve": "موافقة وإنشاء التقرير",
+    "sourceFile": "الملف المصدر",
+    "openInNewTab": "فتح في نافذة جديدة",
+    "excelPreviewUnavailable": "معاينة Excel غير متاحة. انقر \"فتح في نافذة جديدة\" للتحميل.",
+    "extractedData": "البيانات المستخرجة",
+    "parserWarnings": "تحذيرات المعالج",
+    "engineVerification": "التحقق من المحرك",
+    "engineMatchLabel": "تطابق الحسابات",
+    "matchExcellent": "تطابق ممتاز - تم التحقق من الحسابات",
+    "matchGood": "تطابق جيد - تم اكتشاف اختلافات بسيطة",
+    "matchPoor": "اختلافات كبيرة - راجع بعناية",
+    "discrepancies": "الاختلافات",
+    "typedValue": "المدخل",
+    "computedValue": "المحسوب",
+    "computedValues": "القيم المحسوبة",
+    "rejectImport": "رفض الاستيراد",
+    "rejectDescription": "يرجى تقديم سبب لرفض هذا الاستيراد. سيتم الاحتفاظ بالملف لكن لن يتم إنشاء تقرير.",
+    "rejectReasonPlaceholder": "أدخل سبب الرفض...",
+    "confirmReject": "رفض الاستيراد",
+    "notFound": "الاستيراد غير موجود"
+  }
+}

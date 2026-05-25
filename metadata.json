@@ -1,0 +1,8 @@
+{
+  "name": "Beit Index",
+  "description": "Egypt's reference for property value. FRA-licensed property appraisal platform.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
