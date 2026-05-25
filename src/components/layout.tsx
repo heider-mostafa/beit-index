@@ -3,16 +3,22 @@ import { useTranslation } from 'react-i18next';
 import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/src/lib/utils';
 import { Button } from './ui';
-import { Globe, LogOut, User, LayoutDashboard } from 'lucide-react';
+import { LogOut, LayoutDashboard, Menu, X } from 'lucide-react';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { NotificationCenter } from './NotificationCenter';
 
 export const Navbar = () => {
   const { t, i18n } = useTranslation();
   const [isScrolled, setIsScrolled] = React.useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, profile, signOut } = useAuth();
+
+  // Close mobile menu on route change
+  React.useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
 
   const handleSignOut = async () => {
     try {
@@ -80,8 +86,8 @@ export const Navbar = () => {
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-4 text-[13px] font-medium">
+        <div className="flex items-center gap-4 md:gap-6">
+          <div className="hidden sm:flex items-center gap-4 text-[13px] font-medium">
             <button
               onClick={() => i18n.language !== 'ar' && toggleLanguage()}
               className={cn("transition-colors", i18n.language === 'ar' ? 'text-ink-600' : 'text-ink-300')}
@@ -127,8 +133,88 @@ export const Navbar = () => {
               </Link>
             </>
           )}
+
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="md:hidden p-2 text-ink-600 hover:text-ink-800 transition-colors"
+            aria-label="Toggle menu"
+          >
+            {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile Menu Drawer */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden absolute top-16 inset-x-0 bg-cream-100 border-b border-ink-100 shadow-lg">
+          <div className="px-5 py-6 space-y-4">
+            {/* Nav Links */}
+            {navLinks.map((link) => (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                className={({ isActive }) => cn(
+                  "block text-[15px] font-sans py-2 transition-colors",
+                  isActive ? "text-ink-600 font-medium" : "text-ink-400 hover:text-ink-600"
+                )}
+              >
+                {link.label}
+              </NavLink>
+            ))}
+
+            {/* Divider */}
+            <div className="border-t border-ink-100 pt-4 mt-4">
+              {/* Language Toggle */}
+              <div className="flex items-center gap-4 text-[13px] font-medium mb-4">
+                <button
+                  onClick={() => { i18n.language !== 'ar' && toggleLanguage(); }}
+                  className={cn("transition-colors", i18n.language === 'ar' ? 'text-ink-600' : 'text-ink-300')}
+                >
+                  AR
+                </button>
+                <button
+                  onClick={() => { i18n.language !== 'en' && toggleLanguage(); }}
+                  className={cn("transition-colors", i18n.language === 'en' ? 'text-ink-600' : 'text-ink-300')}
+                >
+                  EN
+                </button>
+              </div>
+
+              {/* Auth Actions */}
+              {user ? (
+                <div className="space-y-3">
+                  <Link
+                    to="/dashboard"
+                    className="flex items-center gap-2 text-[15px] font-medium text-ink-600 hover:text-ink-800 transition-colors py-2"
+                  >
+                    <LayoutDashboard className="h-4 w-4" />
+                    {t('common.dashboard')}
+                  </Link>
+                  <button
+                    onClick={handleSignOut}
+                    className="flex items-center gap-2 text-[15px] font-medium text-ink-400 hover:text-ink-600 transition-colors py-2"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    {t('common.logout')}
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <Link to="/login" className="block text-[15px] font-medium text-ink-600 hover:text-ink-800 transition-colors py-2">
+                    {t('common.login')}
+                  </Link>
+                  <Link to="/signup" className="block">
+                    <Button className="w-full" withArrow>
+                      {t('common.signUp')}
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </nav>
   );
 };

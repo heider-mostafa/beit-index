@@ -4,7 +4,6 @@ import { Card, Badge, Button } from '@/src/components/ui';
 import { Link } from 'react-router-dom';
 import { MapPin, ChevronDown, ChevronLeft, ChevronRight, Loader2, Users } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
-import { MOCK_APPRAISERS } from '@/src/lib/mock/appraisers';
 
 interface Appraiser {
   id: string;
@@ -67,7 +66,6 @@ export const AppraisersPage = () => {
   const [selectedPropertyType, setSelectedPropertyType] = React.useState<string>('');
   const [minExperience, setMinExperience] = React.useState<string>('');
   const [sortBy, setSortBy] = React.useState<string>('rating');
-  const [useMockData, setUseMockData] = React.useState(false);
 
   // Load filter options
   React.useEffect(() => {
@@ -115,22 +113,16 @@ export const AppraisersPage = () => {
 
         if (res.ok) {
           const data = await res.json();
-          if (data.appraisers && data.appraisers.length > 0) {
-            setAppraisers(data.appraisers);
-            setTotal(data.total || 0);
-            setTotalPages(data.totalPages || 1);
-            setUseMockData(false);
-          } else {
-            // Fall back to mock data if no real data
-            setUseMockData(true);
-          }
+          setAppraisers(data.appraisers || []);
+          setTotal(data.total || 0);
+          setTotalPages(data.totalPages || 1);
         } else {
-          // Fall back to mock data on error
-          setUseMockData(true);
+          console.error('Failed to load appraisers');
+          setAppraisers([]);
         }
       } catch (err) {
         console.error('Error loading appraisers:', err);
-        setUseMockData(true);
+        setAppraisers([]);
       }
 
       setLoading(false);
@@ -139,46 +131,6 @@ export const AppraisersPage = () => {
     loadAppraisers();
   }, [page, selectedGovernorate, selectedPropertyType, minExperience, sortBy]);
 
-  // Transform mock data to match real data structure
-  const displayAppraisers = useMockData
-    ? MOCK_APPRAISERS.map((a) => ({
-        id: a.id,
-        full_name_en: a.fullNameEn,
-        full_name_ar: a.fullNameAr,
-        professional_title_en: a.titleEn,
-        professional_title_ar: a.titleAr,
-        years_experience: a.yearsExperience,
-        photo_url: a.photoUrl,
-        fra_license_number: a.fraLicenseNumber,
-        starting_price_egp: a.startingPriceEgp,
-        averageRating: a.averageRating,
-        reviewCount: a.reviewCount,
-        appraiser_service_areas: a.serviceDistrictsEn.map((d, i) => ({
-          district_id: `mock-${i}`,
-          districts: {
-            name_en: d,
-            name_ar: a.serviceDistrictsAr[i] || d,
-            cities: {
-              name_en: a.primaryGovernorateEn,
-              name_ar: a.primaryGovernorateAr,
-              governorate_id: 'mock',
-              governorates: {
-                name_en: a.primaryGovernorateEn,
-                name_ar: a.primaryGovernorateAr,
-              },
-            },
-          },
-        })),
-        appraiser_specialties: a.specialties.map((s, i) => ({
-          property_type_id: `mock-${i}`,
-          years_experience: s.yearsExperience,
-          property_types: {
-            name_en: s.propertyTypeEn,
-            name_ar: s.propertyTypeAr,
-          },
-        })),
-      }))
-    : appraisers;
 
   return (
     <div className="pt-32 pb-24 px-5 md:px-8">
@@ -239,7 +191,7 @@ export const AppraisersPage = () => {
             />
           </div>
           <div className="text-[13px] text-ink-300 italic">
-            {t('directory.showing', { count: useMockData ? MOCK_APPRAISERS.length : total })}
+            {t('directory.showing', { count: total })}
           </div>
         </div>
 
@@ -248,7 +200,7 @@ export const AppraisersPage = () => {
           <div className="flex items-center justify-center py-24">
             <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
           </div>
-        ) : displayAppraisers.length === 0 ? (
+        ) : appraisers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-ink-400">
             <Users className="h-12 w-12 mb-4 text-ink-200" />
             <p className="text-body-m">No appraisers found</p>
@@ -257,13 +209,13 @@ export const AppraisersPage = () => {
           <>
             {/* Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {displayAppraisers.map((appraiser) => (
+              {appraisers.map((appraiser) => (
                 <AppraiserCard key={appraiser.id} appraiser={appraiser} isAr={isAr} />
               ))}
             </div>
 
             {/* Pagination */}
-            {!useMockData && totalPages > 1 && (
+            {totalPages > 1 && (
               <div className="mt-20 pt-8 border-t border-ink-100 flex items-center justify-between">
                 <div className="text-body-s text-ink-200">
                   Page {page} of {totalPages}

@@ -156,12 +156,10 @@ export const HomePage = () => {
       {/* 4. HOW IT WORKS */}
       <section className="py-24 px-5 md:px-8 bg-cream-100">
         <div className="max-w-6xl mx-auto">
-          <ScrollReveal>
-            <div className="text-center mb-16">
-              <span className="eyebrow text-emerald-600 mb-4 block">Simple Process</span>
-              <h2 className="text-h2 text-ink-600">How Beit Index Works</h2>
-            </div>
-          </ScrollReveal>
+          <div className="text-center mb-16">
+            <span className="eyebrow text-emerald-600 mb-4 block">Simple Process</span>
+            <h2 className="text-h2 text-ink-600">How Beit Index Works</h2>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             {[
@@ -170,27 +168,25 @@ export const HomePage = () => {
               { icon: FileText, step: '03', title: 'Receive Report', desc: 'Get a bank-ready valuation report within 48 hours' },
               { icon: BadgeCheck, step: '04', title: 'Engine Verified', desc: 'Every report is cross-checked against our 850k valuation database' },
             ].map((item, index) => (
-              <ScrollReveal key={item.step} delay={index * 0.1}>
-                <div className="relative">
-                  {/* Connector line */}
-                  {index < 3 && (
-                    <div className="hidden md:block absolute top-8 left-[60%] right-0 h-px bg-gradient-to-r from-emerald-300 to-transparent" />
-                  )}
+              <div key={item.step} className="relative">
+                {/* Connector line */}
+                {index < 3 && (
+                  <div className="hidden md:block absolute top-8 left-[60%] right-0 h-px bg-gradient-to-r from-emerald-300 to-transparent" />
+                )}
 
-                  <div className="bg-white rounded-lg p-6 border border-ink-100 hover:border-emerald-200 hover:shadow-lg transition-all group">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
-                        <item.icon className="w-5 h-5 text-emerald-600" />
-                      </div>
-                      <span className="text-[32px] font-serif text-ink-100 group-hover:text-emerald-200 transition-colors">
-                        {item.step}
-                      </span>
+                <div className="bg-white rounded-lg p-6 border border-ink-100 hover:border-emerald-200 hover:shadow-lg transition-all group">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
+                      <item.icon className="w-5 h-5 text-emerald-600" />
                     </div>
-                    <h3 className="font-medium text-ink-600 mb-2">{item.title}</h3>
-                    <p className="text-sm text-ink-400 leading-relaxed">{item.desc}</p>
+                    <span className="text-[32px] font-serif text-ink-100 group-hover:text-emerald-200 transition-colors">
+                      {item.step}
+                    </span>
                   </div>
+                  <h3 className="font-medium text-ink-600 mb-2">{item.title}</h3>
+                  <p className="text-sm text-ink-400 leading-relaxed">{item.desc}</p>
                 </div>
-              </ScrollReveal>
+              </div>
             ))}
           </div>
         </div>
@@ -199,63 +195,57 @@ export const HomePage = () => {
       {/* 5. BEIT INDEX DIFFERENCE - Comparison */}
       <section className="py-24 px-5 md:px-8 bg-ink-600 text-cream-50">
         <div className="max-w-5xl mx-auto">
-          <ScrollReveal>
-            <div className="text-center mb-16">
-              <span className="eyebrow text-emerald-400 mb-4 block">Why Choose Us</span>
-              <h2 className="text-h2 text-cream-50">The Beit Index Difference</h2>
-            </div>
-          </ScrollReveal>
+          <div className="text-center mb-16">
+            <span className="eyebrow text-emerald-400 mb-4 block">Why Choose Us</span>
+            <h2 className="text-h2 text-cream-50">The Beit Index Difference</h2>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-16">
             {/* Traditional */}
-            <ScrollReveal delay={0.1}>
-              <div className="bg-ink-500/50 rounded-lg p-8 border border-ink-400">
-                <h3 className="text-lg font-medium text-cream-200 mb-6 flex items-center gap-2">
-                  <XCircle className="w-5 h-5 text-red-400" />
-                  Traditional Appraisal
-                </h3>
-                <ul className="space-y-4">
-                  {[
-                    '2-3 weeks turnaround time',
-                    'No data backing or comparables',
-                    'Single appraiser opinion',
-                    'Paper-based reports only',
-                    'No verification system',
-                    'Inconsistent pricing',
-                  ].map((item) => (
-                    <li key={item} className="flex items-center gap-3 text-cream-300">
-                      <div className="w-1.5 h-1.5 rounded-full bg-red-400/50" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </ScrollReveal>
+            <div className="bg-ink-500/50 rounded-lg p-8 border border-ink-400">
+              <h3 className="text-lg font-medium text-cream-200 mb-6 flex items-center gap-2">
+                <XCircle className="w-5 h-5 text-red-400" />
+                Traditional Appraisal
+              </h3>
+              <ul className="space-y-4">
+                {[
+                  '2-3 weeks turnaround time',
+                  'No data backing or comparables',
+                  'Single appraiser opinion',
+                  'Paper-based reports only',
+                  'No verification system',
+                  'Inconsistent pricing',
+                ].map((item) => (
+                  <li key={item} className="flex items-center gap-3 text-cream-300">
+                    <div className="w-1.5 h-1.5 rounded-full bg-red-400/50" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
 
             {/* Beit Index */}
-            <ScrollReveal delay={0.2}>
-              <div className="bg-emerald-600/20 rounded-lg p-8 border border-emerald-500/30">
-                <h3 className="text-lg font-medium text-cream-50 mb-6 flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                  Beit Index
-                </h3>
-                <ul className="space-y-4">
-                  {[
-                    '48-hour delivery guaranteed',
-                    '850,000+ comparable valuations',
-                    'FRA-licensed expert network',
-                    'Digital + PDF reports',
-                    'AI-powered verification engine',
-                    'Transparent, standardized pricing',
-                  ].map((item) => (
-                    <li key={item} className="flex items-center gap-3 text-cream-100">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </ScrollReveal>
+            <div className="bg-emerald-600/20 rounded-lg p-8 border border-emerald-500/30">
+              <h3 className="text-lg font-medium text-cream-50 mb-6 flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                Beit Index
+              </h3>
+              <ul className="space-y-4">
+                {[
+                  '48-hour delivery guaranteed',
+                  '850,000+ comparable valuations',
+                  'FRA-licensed expert network',
+                  'Digital + PDF reports',
+                  'AI-powered verification engine',
+                  'Transparent, standardized pricing',
+                ].map((item) => (
+                  <li key={item} className="flex items-center gap-3 text-cream-100">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
       </section>
@@ -265,104 +255,94 @@ export const HomePage = () => {
         {/* FOR BANKS */}
         <div className="py-24 px-5 md:px-8">
           <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-16 md:gap-24 items-center">
-            <ScrollReveal>
-              <div className="max-w-xl">
-                <span className="text-eyebrow text-ink-300 mb-6 block">
-                  {t('sections.banks.eyebrow')}
-                </span>
-                <h2 className="text-h2 text-ink-600 mb-8">
-                  {t('sections.banks.title')}
-                </h2>
-                <div className="space-y-6 mb-10">
-                  <div className="flex gap-4">
-                    <ShieldCheck className="h-5 w-5 text-emerald-500 shrink-0" />
-                    <p className="text-body-m text-ink-400">{t('sections.banks.f1')}</p>
-                  </div>
-                  <div className="flex gap-4">
-                    <ClipboardCheck className="h-5 w-5 text-emerald-500 shrink-0" />
-                    <p className="text-body-m text-ink-400">{t('sections.banks.f2')}</p>
-                  </div>
-                  <div className="flex gap-4">
-                    <Database className="h-5 w-5 text-emerald-500 shrink-0" />
-                    <p className="text-body-m text-ink-400">{t('sections.banks.f3')}</p>
-                  </div>
+            <div className="max-w-xl">
+              <span className="text-eyebrow text-ink-300 mb-6 block">
+                {t('sections.banks.eyebrow')}
+              </span>
+              <h2 className="text-h2 text-ink-600 mb-8">
+                {t('sections.banks.title')}
+              </h2>
+              <div className="space-y-6 mb-10">
+                <div className="flex gap-4">
+                  <ShieldCheck className="h-5 w-5 text-emerald-500 shrink-0" />
+                  <p className="text-body-m text-ink-400">{t('sections.banks.f1')}</p>
                 </div>
-                <Button variant="secondary" withArrow>{t('sections.banks.cta')}</Button>
+                <div className="flex gap-4">
+                  <ClipboardCheck className="h-5 w-5 text-emerald-500 shrink-0" />
+                  <p className="text-body-m text-ink-400">{t('sections.banks.f2')}</p>
+                </div>
+                <div className="flex gap-4">
+                  <Database className="h-5 w-5 text-emerald-500 shrink-0" />
+                  <p className="text-body-m text-ink-400">{t('sections.banks.f3')}</p>
+                </div>
               </div>
-            </ScrollReveal>
+              <Button variant="secondary" withArrow>{t('sections.banks.cta')}</Button>
+            </div>
 
-            <ScrollReveal delay={0.2}>
-              <CairoWebGLMap />
-            </ScrollReveal>
+            <CairoWebGLMap />
           </div>
         </div>
 
         {/* FOR APPRAISERS */}
         <div className="py-24 px-5 md:px-8 bg-cream-100">
           <div className="max-w-7xl mx-auto flex justify-center">
-            <ScrollReveal>
-              <div className="max-w-3xl text-center">
-                <span className="text-eyebrow text-ink-300 mb-6 block">
-                  {t('sections.appraisers.eyebrow')}
-                </span>
-                <h2 className="text-h2 text-ink-600 mb-8">
-                  {t('sections.appraisers.title')}
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-                   <div className="p-6 border-[0.5px] border-ink-100 rounded-md bg-white text-start hover:shadow-lg hover:border-emerald-200 transition-all">
-                     <TrendingUp className="w-8 h-8 text-emerald-500 mb-4" />
-                     <p className="text-body-m text-ink-400">{t('sections.appraisers.f1')}</p>
-                   </div>
-                   <div className="p-6 border-[0.5px] border-ink-100 rounded-md bg-white text-start hover:shadow-lg hover:border-emerald-200 transition-all">
-                     <Users className="w-8 h-8 text-emerald-500 mb-4" />
-                     <p className="text-body-m text-ink-400">{t('sections.appraisers.f2')}</p>
-                   </div>
-                   <div className="p-6 border-[0.5px] border-ink-100 rounded-md bg-white text-start hover:shadow-lg hover:border-emerald-200 transition-all">
-                     <Target className="w-8 h-8 text-emerald-500 mb-4" />
-                     <p className="text-body-m text-ink-400">{t('sections.appraisers.f3')}</p>
-                   </div>
-                </div>
-                <Button variant="emerald" withArrow>{t('sections.appraisers.cta')}</Button>
+            <div className="max-w-3xl text-center">
+              <span className="text-eyebrow text-ink-300 mb-6 block">
+                {t('sections.appraisers.eyebrow')}
+              </span>
+              <h2 className="text-h2 text-ink-600 mb-8">
+                {t('sections.appraisers.title')}
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+                 <div className="p-6 border-[0.5px] border-ink-100 rounded-md bg-white text-start hover:shadow-lg hover:border-emerald-200 transition-all">
+                   <TrendingUp className="w-8 h-8 text-emerald-500 mb-4" />
+                   <p className="text-body-m text-ink-400">{t('sections.appraisers.f1')}</p>
+                 </div>
+                 <div className="p-6 border-[0.5px] border-ink-100 rounded-md bg-white text-start hover:shadow-lg hover:border-emerald-200 transition-all">
+                   <Users className="w-8 h-8 text-emerald-500 mb-4" />
+                   <p className="text-body-m text-ink-400">{t('sections.appraisers.f2')}</p>
+                 </div>
+                 <div className="p-6 border-[0.5px] border-ink-100 rounded-md bg-white text-start hover:shadow-lg hover:border-emerald-200 transition-all">
+                   <Target className="w-8 h-8 text-emerald-500 mb-4" />
+                   <p className="text-body-m text-ink-400">{t('sections.appraisers.f3')}</p>
+                 </div>
               </div>
-            </ScrollReveal>
+              <Button variant="emerald" withArrow>{t('sections.appraisers.cta')}</Button>
+            </div>
           </div>
         </div>
 
         {/* FOR OWNERS */}
         <div className="py-24 px-5 md:px-8">
           <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-16 md:gap-24 items-center">
-             <ScrollReveal>
-               <div className="grid grid-cols-2 gap-4">
-                  <div className="aspect-[4/5] bg-ink-200 rounded-sm overflow-hidden grayscale hover:grayscale-0 transition-all duration-500">
-                    <img src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=400" alt="Apartment" className="w-full h-full object-cover" />
-                  </div>
-                  <div className="aspect-[4/5] bg-ink-200 rounded-sm overflow-hidden pt-12 grayscale hover:grayscale-0 transition-all duration-500">
-                    <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=400" alt="Villa" className="w-full h-full object-cover" />
-                  </div>
-               </div>
-             </ScrollReveal>
+             <div className="grid grid-cols-2 gap-4">
+                <div className="aspect-[4/5] bg-ink-200 rounded-sm overflow-hidden grayscale hover:grayscale-0 transition-all duration-500">
+                  <img src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=400" alt="Apartment" className="w-full h-full object-cover" />
+                </div>
+                <div className="aspect-[4/5] bg-ink-200 rounded-sm overflow-hidden pt-12 grayscale hover:grayscale-0 transition-all duration-500">
+                  <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=400" alt="Villa" className="w-full h-full object-cover" />
+                </div>
+             </div>
 
-             <ScrollReveal delay={0.2}>
-               <div className="max-w-xl">
-                 <span className="text-eyebrow text-ink-300 mb-6 block">
-                   {t('sections.owners.eyebrow')}
-                 </span>
-                 <h2 className="text-h2 text-ink-600 mb-8">
-                   {t('sections.owners.title')}
-                 </h2>
-                 <ul className="space-y-4 mb-10">
-                   {[t('sections.owners.f1'), t('sections.owners.f2'), t('sections.owners.f3')].map((f) => (
-                     <li key={f} className="flex gap-3">
-                       <CheckIcon className="h-5 w-5 text-emerald-500" />
-                       <span className="text-body-m text-ink-400">{f}</span>
-                     </li>
-                   ))}
-                 </ul>
-                 <Link to="/appraisers">
-                   <Button withArrow>{t('sections.owners.cta')}</Button>
-                 </Link>
-               </div>
-             </ScrollReveal>
+             <div className="max-w-xl">
+               <span className="text-eyebrow text-ink-300 mb-6 block">
+                 {t('sections.owners.eyebrow')}
+               </span>
+               <h2 className="text-h2 text-ink-600 mb-8">
+                 {t('sections.owners.title')}
+               </h2>
+               <ul className="space-y-4 mb-10">
+                 {[t('sections.owners.f1'), t('sections.owners.f2'), t('sections.owners.f3')].map((f) => (
+                   <li key={f} className="flex gap-3">
+                     <CheckIcon className="h-5 w-5 text-emerald-500" />
+                     <span className="text-body-m text-ink-400">{f}</span>
+                   </li>
+                 ))}
+               </ul>
+               <Link to="/appraisers">
+                 <Button withArrow>{t('sections.owners.cta')}</Button>
+               </Link>
+             </div>
           </div>
         </div>
       </section>
@@ -404,10 +384,8 @@ export const HomePage = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {MOCK_APPRAISERS.slice(0, 3).map((appraiser, i) => (
-              <ScrollReveal key={appraiser.id} delay={i * 0.1}>
-                 <AppraiserCard appraiser={appraiser} language={i18n.language} />
-              </ScrollReveal>
+            {MOCK_APPRAISERS.slice(0, 3).map((appraiser) => (
+              <AppraiserCard key={appraiser.id} appraiser={appraiser} language={i18n.language} />
             ))}
           </div>
         </div>
@@ -416,7 +394,7 @@ export const HomePage = () => {
       {/* 9. METHODOLOGY SNIPPET */}
       <section className="py-24 px-5 md:px-8">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-16 md:gap-24">
-          <ScrollReveal>
+          <div>
             <span className="eyebrow text-emerald-600 mb-4 block">Our Methodology</span>
             <h2 className="text-h2 mb-8">{t('methodology.title')}</h2>
             <div className="space-y-6 text-body-m text-ink-400">
@@ -426,62 +404,58 @@ export const HomePage = () => {
                 <Button variant="secondary" withArrow>{t('methodology.cta')}</Button>
               </Link>
             </div>
-          </ScrollReveal>
+          </div>
 
-          <ScrollReveal delay={0.2}>
-            <div className="p-8 border-[0.5px] border-ink-100 rounded-md bg-white">
-              <div className="h-48 flex items-end gap-8 mb-8">
-                {[
-                  { h: '40%', l: 'Cost', color: 'bg-emerald-200' },
-                  { h: '90%', l: 'Sales', color: 'bg-emerald-500' },
-                  { h: '65%', l: 'Income', color: 'bg-emerald-300' },
-                ].map((bar) => (
-                  <div key={bar.l} className="flex-1 flex flex-col items-center gap-3">
-                    <motion.div
-                      initial={{ height: 0 }}
-                      whileInView={{ height: bar.h }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 1, ease: "easeOut", delay: 0.5 }}
-                      className={`w-full ${bar.color} rounded-t-sm`}
-                    />
-                    <span className="text-eyebrow text-ink-200">{bar.l}</span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-[13px] italic text-ink-300 leading-relaxed">
-                {t('methodology.visualLabel')}
-              </p>
+          <div className="p-8 border-[0.5px] border-ink-100 rounded-md bg-white">
+            <div className="h-48 flex items-end gap-8 mb-8">
+              {[
+                { h: '40%', l: 'Cost', color: 'bg-emerald-200' },
+                { h: '90%', l: 'Sales', color: 'bg-emerald-500' },
+                { h: '65%', l: 'Income', color: 'bg-emerald-300' },
+              ].map((bar) => (
+                <div key={bar.l} className="flex-1 flex flex-col items-center gap-3">
+                  <motion.div
+                    initial={{ height: 0 }}
+                    whileInView={{ height: bar.h }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 1, ease: "easeOut", delay: 0.5 }}
+                    className={`w-full ${bar.color} rounded-t-sm`}
+                  />
+                  <span className="text-eyebrow text-ink-200">{bar.l}</span>
+                </div>
+              ))}
             </div>
-          </ScrollReveal>
+            <p className="text-[13px] italic text-ink-300 leading-relaxed">
+              {t('methodology.visualLabel')}
+            </p>
+          </div>
         </div>
       </section>
 
       {/* 10. FINAL CTA BAND */}
       <section className="bg-emerald-500 py-24 px-5 md:px-8">
         <div className="max-w-4xl mx-auto text-center">
-          <ScrollReveal>
-            <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-8">
-              <Building2 className="w-8 h-8 text-white" />
-            </div>
-            <h2 className="text-[40px] md:text-[56px] leading-[1.05] font-serif font-medium text-cream-50 mb-6">
-              {t('finalCta.title')}
-            </h2>
-            <p className="text-lg text-emerald-100 mb-12 max-w-2xl mx-auto">
-              Join thousands of property owners, banks, and appraisers using Egypt's most trusted valuation platform.
-            </p>
-            <div className="flex flex-wrap justify-center gap-4">
-               <Link to="/signup">
-                 <Button className="bg-cream-100 text-emerald-900 border-none hover:bg-cream-200 px-8 py-3">
-                    {t('common.requestAppraisal')}
-                 </Button>
-               </Link>
-               <Link to="/signup">
-                 <Button variant="secondary" className="border-cream-100/30 text-cream-50 hover:bg-cream-100/10 px-8 py-3">
-                    {t('finalCta.join')}
-                 </Button>
-               </Link>
-            </div>
-          </ScrollReveal>
+          <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-8">
+            <Building2 className="w-8 h-8 text-white" />
+          </div>
+          <h2 className="text-[40px] md:text-[56px] leading-[1.05] font-serif font-medium text-cream-50 mb-6">
+            {t('finalCta.title')}
+          </h2>
+          <p className="text-lg text-emerald-100 mb-12 max-w-2xl mx-auto">
+            Join thousands of property owners, banks, and appraisers using Egypt's most trusted valuation platform.
+          </p>
+          <div className="flex flex-wrap justify-center gap-4">
+             <Link to="/signup">
+               <Button className="bg-cream-100 text-emerald-900 border-none hover:bg-cream-200 px-8 py-3">
+                  {t('common.requestAppraisal')}
+               </Button>
+             </Link>
+             <Link to="/signup">
+               <Button variant="secondary" className="border-cream-100/30 text-cream-50 hover:bg-cream-100/10 px-8 py-3">
+                  {t('finalCta.join')}
+               </Button>
+             </Link>
+          </div>
         </div>
       </section>
     </div>
