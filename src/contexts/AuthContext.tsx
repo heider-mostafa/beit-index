@@ -164,7 +164,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const supabase = getSupabaseBrowserClient();
 
-      // Sign up with Supabase Auth
+      // Sign up with Supabase Auth.
+      // emailRedirectTo ensures that if the user confirms via the magic link
+      // (instead of entering the 6-digit code inline), they land on /login,
+      // which runs redirectBasedOnRole and forwards appraisers into onboarding
+      // — rather than dropping them on the home page with no next step.
       const { data, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -173,6 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             full_name: fullName,
             role,
           },
+          emailRedirectTo: `${window.location.origin}/login`,
         },
       });
 

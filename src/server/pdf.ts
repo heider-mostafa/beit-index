@@ -542,8 +542,6 @@ function generatePage1(report: ReportData, pageNumber: number = 1): string {
     rented: 'مستأجر',
   };
 
-  const facadePhoto = report.photos.find(p => p.category === 'facade') || report.photos[0];
-
   return `
     <div class="page">
       <div class="page-header">
@@ -660,23 +658,14 @@ function generatePage1(report: ReportData, pageNumber: number = 1): string {
         </tr>
       </table>
 
-      <table style="margin-bottom: 16mm;">
-        <tr>
-          <td class="bold center" colspan="2">الواجهة الامامية للعقار</td>
-        </tr>
-        <tr>
-          <td colspan="2" class="center" style="height: 46mm;">
-            ${facadePhoto ? `<img src="${facadePhoto.storage_path}" style="max-height: 42mm; max-width: 100%; object-fit: contain;">` : '<div style="color: #999;">لا توجد صورة</div>'}
-          </td>
-        </tr>
-      </table>
-
       ${generateFooter(report, pageNumber)}
     </div>
   `;
 }
 
 function generatePage2(report: ReportData, pageNumber: number = 2): string {
+  // Images start on page 2 to keep the dense cover (page 1) from overflowing.
+  const facadePhoto = report.photos.find(p => p.category === 'facade') || report.photos[0];
   const locationPhoto = report.photos.find(p => p.category === 'location_map');
   const streetPhoto = report.photos.find(p => p.category === 'street_view');
 
@@ -686,19 +675,24 @@ function generatePage2(report: ReportData, pageNumber: number = 2): string {
 
       <table>
         <tr>
+          <td class="bold center" colspan="2">الواجهة الامامية للعقار</td>
+        </tr>
+        <tr>
+          <td colspan="2" class="center" style="height: 80mm;">
+            ${facadePhoto ? `<img src="${facadePhoto.storage_path}" style="max-height: 75mm; max-width: 100%; object-fit: contain;">` : '<div style="color: #999;">لا توجد صورة</div>'}
+          </td>
+        </tr>
+      </table>
+
+      <table style="margin-top: 4mm;">
+        <tr>
           <td class="bold center" colspan="2">التصوير الجوى للموقع</td>
         </tr>
         <tr>
-          <td colspan="2" class="center" style="height: 100mm;">
-            ${locationPhoto ? `<img src="${locationPhoto.storage_path}" style="max-height: 95mm; max-width: 100%;">` : '<div style="color: #999; padding: 40mm;">صورة جوية للموقع</div>'}
+          <td colspan="2" class="center" style="height: 90mm;">
+            ${locationPhoto ? `<img src="${locationPhoto.storage_path}" style="max-height: 85mm; max-width: 100%; object-fit: contain;">` : '<div style="color: #999; padding: 30mm;">صورة جوية للموقع</div>'}
           </td>
         </tr>
-        ${streetPhoto ? `
-        <tr>
-          <td colspan="2" class="center" style="height: 100mm;">
-            <img src="${streetPhoto.storage_path}" style="max-height: 95mm; max-width: 100%;">
-          </td>
-        </tr>` : ''}
       </table>
 
       ${generateFooter(report, pageNumber)}
@@ -709,7 +703,7 @@ function generatePage2(report: ReportData, pageNumber: number = 2): string {
 function generatePage3_4(report: ReportData, startPageNumber: number = 3): string {
   const interiorPhotos = report.photos.filter(p =>
     ['living_room', 'bedroom', 'bathroom', 'kitchen', 'balcony', 'entrance',
-     'garden', 'pool', 'garage', 'roof'].includes(p.category)
+     'garden', 'pool', 'garage', 'roof', 'street_view'].includes(p.category)
   );
 
   const categoryLabels: Record<string, string> = {
@@ -1532,7 +1526,10 @@ function generatePage12(report: ReportData, pageNumber: number = 12): string {
                 <p class="bold">التوقيع</p>
                 ${report.appraiser?.signature_url
                   ? `<img src="${report.appraiser.signature_url}" style="max-height: 20mm; max-width: 50mm; margin-top: 2mm;" alt="توقيع">`
-                  : '<div style="width: 50mm; height: 15mm; border-bottom: 1px solid #000; margin-top: 10mm;"></div>'
+                  : `<div style="margin-top: 6mm;">
+                       <div style="font-size: 18px; font-style: italic; border-bottom: 1px solid #000; padding-bottom: 1mm; min-width: 50mm; white-space: nowrap;">${report.appraiser?.full_name || '-'}</div>
+                       <div style="font-size: 10px; margin-top: 1mm;">${formatDateArabic(report.appraisal_date)}</div>
+                     </div>`
                 }
               </div>
               <div style="text-align: center;">

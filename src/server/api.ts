@@ -105,6 +105,7 @@ const KNOWN_BUCKETS = ['imports', 'report-photos', 'appraiser-assets', 'verifica
 async function convertImageToBase64(
   supabase: SupabaseClient,
   storagePathOrUrl: string,
+  bucketHint?: string,
   maxRetries: number = 2
 ): Promise<string> {
   // If it's already a data URL, return as-is
@@ -114,11 +115,11 @@ async function convertImageToBase64(
 
   // Extract the storage path and bucket from a Supabase public URL
   // URL format: https://{project}.supabase.co/storage/v1/object/public/{bucket}/{path}
-  let bucket = 'imports';
+  let bucket = bucketHint || 'imports';
   let storagePath = storagePathOrUrl;
 
   if (storagePathOrUrl.includes('supabase.co/storage/')) {
-    // Handle both /public/ and /sign/ URLs
+    // Handle both /public/ and /sign/ URLs (bucket is encoded in the URL)
     const publicMatch = storagePathOrUrl.match(/\/storage\/v1\/object\/(?:public|sign)\/([^\/]+)\/(.+)/);
     if (publicMatch) {
       bucket = publicMatch[1];
@@ -126,6 +127,12 @@ async function convertImageToBase64(
       // Remove query params if present (signed URLs have tokens)
       storagePath = storagePath.split('?')[0];
     }
+  } else if (bucketHint) {
+    // Caller told us the bucket; the value is a bare object key. Uploaded paths
+    // are stored without a bucket prefix (e.g. "{userId}/{ts}_{uuid}.png"), so
+    // prefix-guessing would wrongly fall back to "imports".
+    bucket = bucketHint;
+    storagePath = storagePathOrUrl;
   } else {
     // It's a raw storage path - try to detect bucket from path prefix
     for (const knownBucket of KNOWN_BUCKETS) {
@@ -211,7 +218,7 @@ async function processPhotosForPDF(
   const processedPhotos = await Promise.all(
     photos.map(async (photo) => ({
       ...photo,
-      storage_path: await convertImageToBase64(supabase, photo.storage_path),
+      storage_path: await convertImageToBase64(supabase, photo.storage_path, 'report-photos'),
     }))
   );
 
@@ -2354,10 +2361,10 @@ router.get('/reports/:id/pdf', authMiddleware, async (req: AuthenticatedRequest,
     let stampBase64: string | null = null;
 
     if (appraiserProfile?.signature_url) {
-      signatureBase64 = await convertImageToBase64(supabase, appraiserProfile.signature_url);
+      signatureBase64 = await convertImageToBase64(supabase, appraiserProfile.signature_url, 'appraiser-assets');
     }
     if (appraiserProfile?.stamp_url) {
-      stampBase64 = await convertImageToBase64(supabase, appraiserProfile.stamp_url);
+      stampBase64 = await convertImageToBase64(supabase, appraiserProfile.stamp_url, 'appraiser-assets');
     }
 
     // Flatten appraiser data for PDF generation
