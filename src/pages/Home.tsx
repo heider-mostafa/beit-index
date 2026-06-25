@@ -12,6 +12,7 @@ import {
   FileCheck,
   Users,
   TrendingUp,
+  ChevronRight,
   Search,
   UserCheck,
   FileText,
@@ -44,9 +45,36 @@ const ScrollReveal: React.FC<ScrollRevealProps> = ({ children, delay = 0 }) => {
   );
 };
 
+interface FeaturedAppraiser {
+  id: string;
+  full_name_en: string;
+  full_name_ar: string | null;
+  years_experience: number | null;
+  photo_url: string | null;
+  fra_license_number: string | null;
+  appraiser_service_areas?: Array<{
+    districts?: { cities?: { governorates?: { name_en: string; name_ar: string } } };
+  }>;
+  appraiser_specialties?: Array<{
+    property_types?: { name_en: string; name_ar: string };
+  }>;
+}
+
 export const HomePage = () => {
   const { t, i18n } = useTranslation();
   const isRtl = i18n.language === 'ar';
+
+  // Top verified appraisers for the Featured Appraisers section.
+  const [featuredAppraisers, setFeaturedAppraisers] = React.useState<FeaturedAppraiser[]>([]);
+
+  React.useEffect(() => {
+    fetch('/api/appraisers?limit=3&sortBy=rating')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.appraisers) setFeaturedAppraisers(data.appraisers);
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="pt-16 overflow-hidden">
@@ -308,6 +336,29 @@ export const HomePage = () => {
         </div>
       </section>
 
+      {/* 8. FEATURED APPRAISERS */}
+      {featuredAppraisers.length > 0 && (
+        <section className="py-24 px-5 md:px-8 border-b border-ink-100">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex justify-between items-end mb-12">
+              <div>
+                <span className="eyebrow text-emerald-600 mb-2 block">Expert Network</span>
+                <h3 className="text-h3">{t('featured.title')}</h3>
+              </div>
+              <Link to="/appraisers" className="text-body-s font-medium text-emerald-600 flex items-center gap-1 hover:gap-2 transition-all">
+                {t('common.viewAll')} <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {featuredAppraisers.slice(0, 3).map((appraiser) => (
+                <AppraiserCard key={appraiser.id} appraiser={appraiser} isAr={isRtl} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* 9. METHODOLOGY SNIPPET */}
       <section className="py-24 px-5 md:px-8">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-16 md:gap-24">
@@ -376,6 +427,56 @@ export const HomePage = () => {
         </div>
       </section>
     </div>
+  );
+};
+
+const AppraiserCard: React.FC<{ appraiser: FeaturedAppraiser; isAr: boolean }> = ({ appraiser, isAr }) => {
+  const name = isAr ? (appraiser.full_name_ar || appraiser.full_name_en) : appraiser.full_name_en;
+  const gov = isAr
+    ? appraiser.appraiser_service_areas?.[0]?.districts?.cities?.governorates?.name_ar
+    : appraiser.appraiser_service_areas?.[0]?.districts?.cities?.governorates?.name_en;
+
+  return (
+    <Link to={`/appraisers/${appraiser.id}`} className="group h-full">
+      <Card className="h-full flex flex-col group-hover:border-emerald-200 group-hover:shadow-lg transition-all">
+        <div className="aspect-square bg-ink-50 rounded-sm mb-6 overflow-hidden grayscale group-hover:grayscale-0 transition-all duration-500">
+          {appraiser.photo_url ? (
+            <img
+              src={appraiser.photo_url}
+              alt={name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-ink-200">
+              <Users className="h-16 w-16" />
+            </div>
+          )}
+        </div>
+        <div className="flex-1">
+          <div className="flex justify-between items-start mb-2">
+            <h4 className="text-eyebrow text-emerald-500">{appraiser.fra_license_number || 'FRA Licensed'}</h4>
+            <span className="text-body-s text-ink-200">{appraiser.years_experience || 0} yrs exp.</span>
+          </div>
+          <h3 className="text-xl mb-2 font-serif group-hover:text-emerald-500 transition-colors">
+            {name}
+          </h3>
+          {gov && (
+            <p className="text-body-s text-ink-300 mb-6 flex items-center gap-1.5">
+              <MapPin className="h-3 w-3" />
+              {gov}
+            </p>
+          )}
+
+          <div className="flex flex-wrap gap-2 pt-4 border-t border-ink-50">
+            {appraiser.appraiser_specialties?.slice(0, 2).map((s, idx) => (
+              <Badge key={idx}>
+                {isAr ? s.property_types?.name_ar : s.property_types?.name_en}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      </Card>
+    </Link>
   );
 };
 
