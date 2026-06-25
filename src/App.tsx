@@ -181,6 +181,57 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// Paths where a logged-in appraiser with unfinished onboarding should not linger.
+const PUBLIC_LANDING_PATHS = ['/', '/login', '/signup'];
+
+/**
+ * Routes logged-in appraisers to the right place no matter how they arrive
+ * (login form, magic link, or a persisted session landing on the home page).
+ * Without this, only /login and /signup ran the redirect, so a returning
+ * appraiser could get stranded on the home page with no path into onboarding.
+ */
+function PostAuthRedirect() {
+  const { profile, loading, session } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const lastHandledPath = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    if (loading || !profile || !session?.access_token) return;
+    if (profile.role !== 'appraiser') return;
+
+    if (!PUBLIC_LANDING_PATHS.includes(location.pathname)) {
+      lastHandledPath.current = null;
+      return;
+    }
+    if (lastHandledPath.current === location.pathname) return;
+    lastHandledPath.current = location.pathname;
+
+    const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
+
+    fetch('/api/onboarding/status', {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((status) => {
+        if (!status) return;
+        if (!status.hasProfile) {
+          // Onboarding not submitted yet — always push into onboarding.
+          navigate('/onboarding');
+        } else if (status.profileStatus === 'verified') {
+          // Approved: only pull them off the auth pages; let them browse home.
+          if (isAuthPage) navigate('/dashboard');
+        } else {
+          // Submitted, awaiting/needs admin review.
+          if (isAuthPage) navigate('/onboarding/under-review');
+        }
+      })
+      .catch(() => {});
+  }, [loading, profile, session, location.pathname, navigate]);
+
+  return null;
+}
+
 function AppContent() {
   const { i18n } = useTranslation();
   const location = useLocation();
@@ -196,6 +247,7 @@ function AppContent() {
 
   return (
     <div className="flex flex-col min-h-screen">
+      <PostAuthRedirect />
       <Navbar />
       <main className="flex-1">
         <Routes>
