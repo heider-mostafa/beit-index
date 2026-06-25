@@ -4,7 +4,6 @@ import { motion, useInView } from 'motion/react';
 import {
   Building2,
   ShieldCheck,
-  ArrowRight,
   Database,
   MapPin,
   ClipboardCheck,
@@ -13,8 +12,6 @@ import {
   FileCheck,
   Users,
   TrendingUp,
-  CheckCircle2,
-  XCircle,
   Search,
   UserCheck,
   FileText,
@@ -24,7 +21,6 @@ import { Button, Card, Badge } from '@/src/components/ui';
 import { CairoWebGLMap } from '@/src/components/CairoWebGLMap';
 import { LiveTicker } from '@/src/components/LiveTicker';
 import { StatCard } from '@/src/components/AnimatedCounter';
-import { MOCK_APPRAISERS } from '@/src/lib/mock/appraisers';
 import { Link } from 'react-router-dom';
 
 interface ScrollRevealProps {
@@ -192,64 +188,6 @@ export const HomePage = () => {
         </div>
       </section>
 
-      {/* 5. BEIT INDEX DIFFERENCE - Comparison */}
-      <section className="py-24 px-5 md:px-8 bg-ink-600 text-cream-50">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16">
-            <span className="eyebrow text-emerald-400 mb-4 block">Why Choose Us</span>
-            <h2 className="text-h2 text-cream-50">The Beit Index Difference</h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-16">
-            {/* Traditional */}
-            <div className="bg-ink-500/50 rounded-lg p-8 border border-ink-400">
-              <h3 className="text-lg font-medium text-cream-200 mb-6 flex items-center gap-2">
-                <XCircle className="w-5 h-5 text-red-400" />
-                Traditional Appraisal
-              </h3>
-              <ul className="space-y-4">
-                {[
-                  '2-3 weeks turnaround time',
-                  'No data backing or comparables',
-                  'Single appraiser opinion',
-                  'Paper-based reports only',
-                  'No verification system',
-                  'Inconsistent pricing',
-                ].map((item) => (
-                  <li key={item} className="flex items-center gap-3 text-cream-300">
-                    <div className="w-1.5 h-1.5 rounded-full bg-red-400/50" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Beit Index */}
-            <div className="bg-emerald-600/20 rounded-lg p-8 border border-emerald-500/30">
-              <h3 className="text-lg font-medium text-cream-50 mb-6 flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                Beit Index
-              </h3>
-              <ul className="space-y-4">
-                {[
-                  '48-hour delivery guaranteed',
-                  '850,000+ comparable valuations',
-                  'FRA-licensed expert network',
-                  'Digital + PDF reports',
-                  'AI-powered verification engine',
-                  'Transparent, standardized pricing',
-                ].map((item) => (
-                  <li key={item} className="flex items-center gap-3 text-cream-100">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* 6. AUDIENCE SECTIONS */}
       <section className="divide-y divide-ink-100">
         {/* FOR BANKS */}
@@ -370,27 +308,6 @@ export const HomePage = () => {
         </div>
       </section>
 
-      {/* 8. FEATURED APPRAISERS */}
-      <section className="py-24 px-5 md:px-8 border-b border-ink-100">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-end mb-12">
-            <div>
-              <span className="eyebrow text-emerald-600 mb-2 block">Expert Network</span>
-              <h3 className="text-h3">{t('featured.title')}</h3>
-            </div>
-            <Link to="/appraisers" className="text-body-s font-medium text-emerald-600 flex items-center gap-1 hover:gap-2 transition-all">
-              {t('common.viewAll')} <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {MOCK_APPRAISERS.slice(0, 3).map((appraiser) => (
-              <AppraiserCard key={appraiser.id} appraiser={appraiser} language={i18n.language} />
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* 9. METHODOLOGY SNIPPET */}
       <section className="py-24 px-5 md:px-8">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-16 md:gap-24">
@@ -459,47 +376,6 @@ export const HomePage = () => {
         </div>
       </section>
     </div>
-  );
-};
-
-const AppraiserCard = ({ appraiser, language }: { appraiser: any, language: string }) => {
-  const isAr = language === 'ar';
-  const name = isAr ? appraiser.fullNameAr : appraiser.fullNameEn;
-  const gov = isAr ? appraiser.primaryGovernorateAr : appraiser.primaryGovernorateEn;
-
-  return (
-    <Link to={`/appraisers/${appraiser.id}`} className="group h-full">
-      <Card className="h-full flex flex-col group-hover:border-emerald-200 group-hover:shadow-lg transition-all">
-        <div className="aspect-square bg-ink-50 rounded-sm mb-6 overflow-hidden grayscale group-hover:grayscale-0 transition-all duration-500">
-          <img
-            src={appraiser.photoUrl}
-            alt={name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-          />
-        </div>
-        <div className="flex-1">
-          <div className="flex justify-between items-start mb-2">
-             <h4 className="text-eyebrow text-emerald-500">{appraiser.fraLicenseNumber}</h4>
-             <span className="text-body-s text-ink-200">{appraiser.yearsExperience} yrs exp.</span>
-          </div>
-          <h3 className="text-xl mb-2 font-serif group-hover:text-emerald-500 transition-colors">
-            {name}
-          </h3>
-          <p className="text-body-s text-ink-300 mb-6 flex items-center gap-1.5">
-            <MapPin className="h-3 w-3" />
-            {gov}
-          </p>
-
-          <div className="flex flex-wrap gap-2 pt-4 border-t border-ink-50">
-            {appraiser.specialties.slice(0, 2).map((s: any) => (
-              <Badge key={s.propertyTypeEn}>
-                {isAr ? s.propertyTypeAr : s.propertyTypeEn}
-              </Badge>
-            ))}
-          </div>
-        </div>
-      </Card>
-    </Link>
   );
 };
 
