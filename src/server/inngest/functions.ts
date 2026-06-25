@@ -9,17 +9,17 @@
  */
 
 import { inngest, type ImportJobStartedEvent } from './client';
-import { parseExcelBuffer, type ExtractedImage } from '../import/excel';
+import { parseExcelBuffer } from '../import/excel';
 // Note: parsePDFWithFallback is dynamically imported in processPDFFile()
 // to avoid loading the 'canvas' package until actually needed (canvas has
 // native bindings that can conflict with system libraries)
 import { verifyExtractedData, canVerify } from '../import/verify';
 import { getServiceClient } from '../supabase';
 import {
-  generateImageStoragePath,
   summarizeImages,
   classifyImagesWithAI,
-  type ClassifiedImage,
+  selectDisplayablePhotos,
+  type DisplayablePhoto,
 } from '../import/images';
 
 /**
@@ -80,8 +80,15 @@ async function processExcelFile(
   // Classify images with AI Vision (falls back to row-based if AI unavailable)
   const classifiedImages = await classifyImagesWithAI(parseResult.images);
 
-  // Upload classified images to storage
-  const uploadedImages = await uploadImages(supabase, jobId, classifiedImages);
+  // Keep every real photo (even when the AI is unsure of the label) and assign
+  // each a category in one place. Only objective junk is dropped: tiny embedded
+  // UI artifacts (checkboxes/icons) and confidently-identified logos/signatures.
+  // Uncertain photos are kept as category 'other' for human review.
+  const displayablePhotos = selectDisplayablePhotos(classifiedImages);
+
+  // Upload the kept photos to storage (category + caption travel with each
+  // image, so no fragile index re-zip downstream).
+  const uploadedImages = await uploadImages(supabase, jobId, displayablePhotos);
 
   // Run verification if we have data
   let verificationResult = null;
@@ -105,16 +112,14 @@ async function processExcelFile(
     finalStatus = 'pending_review';
   }
 
-  // Add image metadata to extracted data (including AI classifications)
+  // Add image metadata to extracted data. Each uploaded entry already carries
+  // its final category, caption, and AI fields — aligned by construction, not
+  // by positional index, so a skipped upload can never shift metadata onto the
+  // wrong photo.
   const extractedDataWithImages = {
     ...parseResult.data,
-    _images: uploadedImages.map((img, i) => ({
-      ...img,
-      roomType: classifiedImages[i]?.roomType,
-      confidence: classifiedImages[i]?.confidence,
-      aiDescription: classifiedImages[i]?.aiDescription,
-    })),
-    _imageSummary: summarizeImages(classifiedImages),
+    _images: uploadedImages,
+    _imageSummary: summarizeImages(displayablePhotos.map((p) => p.image)),
   };
 
   // Update job with all results at once
@@ -146,25 +151,39 @@ async function processExcelFile(
   };
 }
 
+/** A photo that has been uploaded to storage, with its render metadata intact. */
+interface UploadedImage {
+  category: string;
+  label: string;
+  path: string;
+  url: string;
+  caption: string | null;
+  roomType?: string;
+  confidence?: number;
+}
+
 /**
- * Upload extracted images to Supabase storage
+ * Upload selected report photos to Supabase storage.
+ *
+ * Each returned entry keeps the category/caption/roomType that travelled with
+ * the photo, so callers must NOT re-associate metadata by array index — a
+ * failed upload is simply absent from the result, with no knock-on shift.
  */
 async function uploadImages(
   supabase: ReturnType<typeof getServiceClient>,
   jobId: string,
-  images: ExtractedImage[] | ClassifiedImage[]
-): Promise<Array<{ label: string; path: string; url: string }>> {
-  const uploaded: Array<{ label: string; path: string; url: string }> = [];
+  photos: DisplayablePhoto[]
+): Promise<UploadedImage[]> {
+  const uploaded: UploadedImage[] = [];
 
-  // Group images by label to handle multiple images of same type
-  const labelCounts: Record<string, number> = {};
+  // Number files per category so multiple photos of the same type don't collide
+  const categoryCounts: Record<string, number> = {};
 
-  for (const image of images) {
-    // Track count per label for naming
-    labelCounts[image.label] = (labelCounts[image.label] || 0) + 1;
-    const index = labelCounts[image.label];
+  for (const { image, category, caption } of photos) {
+    categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+    const index = categoryCounts[category];
 
-    const storagePath = `${jobId}/images/${image.label}_${index}.${image.extension}`;
+    const storagePath = `${jobId}/images/${category}_${index}.${image.extension}`;
 
     try {
       const { error } = await supabase.storage
@@ -185,9 +204,13 @@ async function uploadImages(
         .getPublicUrl(storagePath);
 
       uploaded.push({
+        category,
         label: image.label,
         path: storagePath,
         url: urlData.publicUrl,
+        caption,
+        roomType: image.roomType,
+        confidence: image.confidence,
       });
     } catch (err) {
       console.error(`Error uploading image ${storagePath}:`, err);
@@ -373,63 +396,32 @@ async function createReportFromImport(
     }
   }
 
-  // Save images to report_photos table
+  // Save images to report_photos table. _images is already filtered to real,
+  // displayable photos with their final category + caption assigned upstream
+  // (selectDisplayablePhotos), so we insert as-is — no re-mapping or filtering.
   const images = extractedData._images as Array<{
-    label: string;
-    path: string;
     url: string;
-    roomType?: string;
-    aiDescription?: string;
+    category: string;
+    caption: string | null;
   }> | undefined;
 
   if (images && Array.isArray(images) && images.length > 0) {
-    // Map import labels to PDF-compatible categories
-    const mapLabelToCategory = (img: typeof images[0]): string => {
-      // For interior photos, use roomType if available
-      if (img.label === 'interior_photos' && img.roomType) {
-        return img.roomType; // kitchen, bedroom, bathroom, etc.
-      }
-
-      // Map import labels to PDF categories
-      const labelMap: Record<string, string> = {
-        'exterior_photos': 'facade',
-        'interior_photos': 'other',
-        'location_map': 'location_map',
-        'floor_plan': 'other',
-        'site_sketch': 'other',
-        'aerial_view': 'location_map',
-        'street_view': 'street_view',
-        'document_scan': 'other',
-        'appraiser_signature': 'other',
-        'company_logo': 'other',
-        'unknown': 'other',
-      };
-      return labelMap[img.label] || 'other';
-    };
-
-    // Filter out logos and signatures - they shouldn't appear in photo grid
-    const photoImages = images.filter(img =>
-      img.label !== 'company_logo' && img.label !== 'appraiser_signature'
-    );
-
-    const photoInserts = photoImages.map((img, index) => ({
+    const photoInserts = images.map((img, index) => ({
       report_id: report.id,
       storage_path: img.url, // Use public URL for display
-      category: mapLabelToCategory(img),
-      caption: img.aiDescription || null,
+      category: img.category,
+      caption: img.caption || null,
       ord: index,
     }));
 
-    if (photoInserts.length > 0) {
-      const { error: photoError } = await supabase
-        .from('report_photos')
-        .insert(photoInserts);
+    const { error: photoError } = await supabase
+      .from('report_photos')
+      .insert(photoInserts);
 
-      if (photoError) {
-        console.error('Failed to insert report photos:', photoError);
-      } else {
-        console.log(`[Import] Inserted ${photoInserts.length} photos for report ${report.id}`);
-      }
+    if (photoError) {
+      console.error('Failed to insert report photos:', photoError);
+    } else {
+      console.log(`[Import] Inserted ${photoInserts.length} photos for report ${report.id}`);
     }
   }
 }

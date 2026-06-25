@@ -82,7 +82,7 @@ const PURPOSES = [
 ];
 
 export default function RequestAppraisal() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { session } = useAuth();
@@ -222,7 +222,7 @@ export default function RequestAppraisal() {
 
   const handleSubmit = async () => {
     if (!governorateId || !addressDescription) {
-      setError(isRTL ? 'يرجى ملء جميع الحقول المطلوبة' : 'Please fill all required fields');
+      setError(t('marketplace.fillRequired'));
       return;
     }
 
@@ -231,7 +231,7 @@ export default function RequestAppraisal() {
 
     try {
       if (!session?.access_token) {
-        setError(isRTL ? 'يرجى تسجيل الدخول أولاً' : 'Please log in first');
+        setError(t('marketplace.loginFirst'));
         setLoading(false);
         return;
       }
@@ -287,20 +287,16 @@ export default function RequestAppraisal() {
       <header className="bg-white border-b border-cream-200 px-6 py-4">
         <div className="max-w-3xl mx-auto">
           <h1 className="text-2xl font-bold text-ink-900">
-            {isRTL ? 'طلب تقييم عقاري' : 'Request Property Appraisal'}
+            {t('marketplace.title')}
           </h1>
           <p className="text-sm text-ink-500 mt-1">
             {appraiserId && selectedAppraiser ? (
               <span className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-emerald-500" />
-                {isRTL
-                  ? `طلب مباشر إلى ${selectedAppraiser.full_name}`
-                  : `Direct request to ${selectedAppraiser.full_name}`}
+                {t('marketplace.directBooking', { name: selectedAppraiser.full_name })}
               </span>
-            ) : isRTL ? (
-              'احصل على تقييم معتمد من مقيم مرخص'
             ) : (
-              'Get a certified valuation from a licensed appraiser'
+              t('marketplace.subtitle')
             )}
           </p>
         </div>
@@ -341,14 +337,14 @@ export default function RequestAppraisal() {
         {step === 1 && (
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="text-lg font-semibold text-ink-900 mb-4">
-              {isRTL ? 'تفاصيل العقار' : 'Property Details'}
+              {t('marketplace.steps.propertyDetails')}
             </h2>
 
             <div className="space-y-4">
               {/* Property Type */}
               <div>
                 <label className="block text-sm font-medium text-ink-700 mb-1">
-                  {isRTL ? 'نوع العقار' : 'Property Type'} *
+                  {t('marketplace.propertyType')} *
                 </label>
                 <div className="grid grid-cols-3 gap-3">
                   {PROPERTY_TYPES.map((type) => (
@@ -372,14 +368,14 @@ export default function RequestAppraisal() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-ink-700 mb-1">
-                    {isRTL ? 'المحافظة' : 'Governorate'} *
+                    {t('marketplace.governorate')} *
                   </label>
                   <select
                     value={governorateId}
                     onChange={(e) => setGovernorateId(e.target.value)}
                     className="w-full px-3 py-2 border border-cream-300 rounded-lg"
                   >
-                    <option value="">{isRTL ? 'اختر المحافظة' : 'Select governorate'}</option>
+                    <option value="">{t('marketplace.selectGovernorate')}</option>
                     {governorates.map((gov) => (
                       <option key={gov.id} value={gov.id}>
                         {isRTL ? gov.name_ar : gov.name_en}
@@ -390,7 +386,7 @@ export default function RequestAppraisal() {
 
                 <div>
                   <label className="block text-sm font-medium text-ink-700 mb-1">
-                    {isRTL ? 'المدينة' : 'City'}
+                    {t('marketplace.city')}
                   </label>
                   <select
                     value={cityId}
@@ -398,7 +394,7 @@ export default function RequestAppraisal() {
                     className="w-full px-3 py-2 border border-cream-300 rounded-lg"
                     disabled={!governorateId}
                   >
-                    <option value="">{isRTL ? 'اختر المدينة' : 'Select city'}</option>
+                    <option value="">{t('marketplace.selectCity')}</option>
                     {cities.map((city) => (
                       <option key={city.id} value={city.id}>
                         {isRTL ? city.name_ar : city.name_en}
@@ -409,7 +405,7 @@ export default function RequestAppraisal() {
 
                 <div>
                   <label className="block text-sm font-medium text-ink-700 mb-1">
-                    {isRTL ? 'الحي' : 'District'}
+                    {t('marketplace.district')}
                   </label>
                   <select
                     value={districtId}
@@ -417,7 +413,7 @@ export default function RequestAppraisal() {
                     className="w-full px-3 py-2 border border-cream-300 rounded-lg"
                     disabled={!cityId}
                   >
-                    <option value="">{isRTL ? 'اختر الحي' : 'Select district'}</option>
+                    <option value="">{t('marketplace.selectDistrict')}</option>
                     {districts.map((dist) => (
                       <option key={dist.id} value={dist.id}>
                         {isRTL ? dist.name_ar : dist.name_en}
@@ -430,18 +426,14 @@ export default function RequestAppraisal() {
               {/* Address */}
               <div>
                 <label className="block text-sm font-medium text-ink-700 mb-1">
-                  {isRTL ? 'وصف العنوان' : 'Address Description'} *
+                  {t('marketplace.addressDescription')} *
                 </label>
                 <textarea
                   value={addressDescription}
                   onChange={(e) => setAddressDescription(e.target.value)}
                   rows={3}
                   className="w-full px-3 py-2 border border-cream-300 rounded-lg"
-                  placeholder={
-                    isRTL
-                      ? 'مثال: فيلا رقم 10، كمبوند سوليا، طريق مصر إسكندرية الصحراوي'
-                      : 'e.g., Villa #10, Solia Compound, Cairo-Alexandria Desert Road'
-                  }
+                  placeholder={t('marketplace.addressPlaceholder')}
                 />
               </div>
 
@@ -449,7 +441,7 @@ export default function RequestAppraisal() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-ink-700 mb-1">
-                    {isRTL ? 'المساحة التقريبية (م²)' : 'Approximate Area (sqm)'}
+                    {t('marketplace.approximateArea')}
                   </label>
                   <input
                     type="number"
@@ -462,7 +454,7 @@ export default function RequestAppraisal() {
 
                 <div>
                   <label className="block text-sm font-medium text-ink-700 mb-1">
-                    {isRTL ? 'الطابق' : 'Floor'}
+                    {t('marketplace.floor')}
                   </label>
                   <input
                     type="text"
@@ -475,7 +467,7 @@ export default function RequestAppraisal() {
 
                 <div>
                   <label className="block text-sm font-medium text-ink-700 mb-1">
-                    {isRTL ? 'غرف النوم' : 'Bedrooms'}
+                    {t('marketplace.bedrooms')}
                   </label>
                   <input
                     type="number"
@@ -494,7 +486,7 @@ export default function RequestAppraisal() {
                 disabled={!governorateId || !addressDescription}
                 className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isRTL ? 'التالي' : 'Next'}
+                {t('marketplace.next')}
               </button>
             </div>
           </div>
@@ -504,14 +496,14 @@ export default function RequestAppraisal() {
         {step === 2 && (
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="text-lg font-semibold text-ink-900 mb-4">
-              {isRTL ? 'خيارات التقرير' : 'Report Options'}
+              {t('marketplace.steps.reportOptions')}
             </h2>
 
             <div className="space-y-6">
               {/* Report Kind */}
               <div>
                 <label className="block text-sm font-medium text-ink-700 mb-2">
-                  {isRTL ? 'نوع التقرير' : 'Report Type'}
+                  {t('marketplace.reportType')}
                 </label>
                 <div className="space-y-3">
                   {REPORT_KINDS.map((kind) => (
@@ -545,7 +537,7 @@ export default function RequestAppraisal() {
               {/* Urgency */}
               <div>
                 <label className="block text-sm font-medium text-ink-700 mb-2">
-                  {isRTL ? 'سرعة التسليم' : 'Delivery Speed'}
+                  {t('marketplace.deliverySpeed')}
                 </label>
                 <div className="grid grid-cols-3 gap-3">
                   {URGENCY_OPTIONS.map((opt) => (
@@ -571,7 +563,7 @@ export default function RequestAppraisal() {
               {/* Purpose */}
               <div>
                 <label className="block text-sm font-medium text-ink-700 mb-1">
-                  {isRTL ? 'غرض التقييم' : 'Purpose of Valuation'}
+                  {t('marketplace.purpose')}
                 </label>
                 <select
                   value={purpose}
@@ -589,18 +581,14 @@ export default function RequestAppraisal() {
               {/* Special Instructions */}
               <div>
                 <label className="block text-sm font-medium text-ink-700 mb-1">
-                  {isRTL ? 'تعليمات خاصة' : 'Special Instructions'}
+                  {t('marketplace.specialInstructions')}
                 </label>
                 <textarea
                   value={specialInstructions}
                   onChange={(e) => setSpecialInstructions(e.target.value)}
                   rows={3}
                   className="w-full px-3 py-2 border border-cream-300 rounded-lg"
-                  placeholder={
-                    isRTL
-                      ? 'أي تعليمات إضافية للمقيم...'
-                      : 'Any additional instructions for the appraiser...'
-                  }
+                  placeholder={t('marketplace.specialInstructionsPlaceholder')}
                 />
               </div>
             </div>
@@ -610,13 +598,13 @@ export default function RequestAppraisal() {
                 onClick={() => setStep(1)}
                 className="px-6 py-2 border border-cream-300 text-ink-700 rounded-lg hover:bg-cream-50"
               >
-                {isRTL ? 'السابق' : 'Back'}
+                {t('marketplace.back')}
               </button>
               <button
                 onClick={() => setStep(3)}
                 className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
               >
-                {isRTL ? 'التالي' : 'Next'}
+                {t('marketplace.next')}
               </button>
             </div>
           </div>
@@ -628,14 +616,14 @@ export default function RequestAppraisal() {
             {/* Summary */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               <h2 className="text-lg font-semibold text-ink-900 mb-4">
-                {isRTL ? 'ملخص الطلب' : 'Order Summary'}
+                {t('marketplace.orderSummary')}
               </h2>
 
               <div className="space-y-3 text-sm">
                 {/* Selected Appraiser (Direct Booking) */}
                 {selectedAppraiser && (
                   <div className="flex justify-between py-2 border-b border-cream-100">
-                    <span className="text-ink-500">{isRTL ? 'المقيم' : 'Appraiser'}</span>
+                    <span className="text-ink-500">{t('marketplace.appraiser')}</span>
                     <span className="font-medium text-ink-900 flex items-center gap-2">
                       {selectedAppraiser.full_name}
                       <CheckCircle className="w-4 h-4 text-emerald-500" />
@@ -643,28 +631,28 @@ export default function RequestAppraisal() {
                   </div>
                 )}
                 <div className="flex justify-between py-2 border-b border-cream-100">
-                  <span className="text-ink-500">{isRTL ? 'نوع العقار' : 'Property Type'}</span>
+                  <span className="text-ink-500">{t('marketplace.propertyType')}</span>
                   <span className="font-medium text-ink-900">
-                    {PROPERTY_TYPES.find((t) => t.value === propertyType)?.[isRTL ? 'labelAr' : 'label']}
+                    {t(`propertyTypes.${propertyType}`)}
                   </span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-cream-100">
-                  <span className="text-ink-500">{isRTL ? 'الموقع' : 'Location'}</span>
+                  <span className="text-ink-500">{t('marketplace.location')}</span>
                   <span className="font-medium text-ink-900">
                     {governorates.find((g) => g.id === governorateId)?.[isRTL ? 'name_ar' : 'name_en']}
                     {cityId && `, ${cities.find((c) => c.id === cityId)?.[isRTL ? 'name_ar' : 'name_en']}`}
                   </span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-cream-100">
-                  <span className="text-ink-500">{isRTL ? 'نوع التقرير' : 'Report Type'}</span>
+                  <span className="text-ink-500">{t('marketplace.reportType')}</span>
                   <span className="font-medium text-ink-900">
-                    {REPORT_KINDS.find((k) => k.value === reportKind)?.[isRTL ? 'labelAr' : 'label']}
+                    {t(`marketplace.reportKinds.${reportKind}`)}
                   </span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-cream-100">
-                  <span className="text-ink-500">{isRTL ? 'سرعة التسليم' : 'Delivery Speed'}</span>
+                  <span className="text-ink-500">{t('marketplace.deliverySpeed')}</span>
                   <span className="font-medium text-ink-900">
-                    {URGENCY_OPTIONS.find((u) => u.value === urgency)?.[isRTL ? 'labelAr' : 'label']}
+                    {t(`marketplace.urgency.${urgency}`)}
                   </span>
                 </div>
               </div>
@@ -673,23 +661,23 @@ export default function RequestAppraisal() {
             {/* Pricing */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               <h2 className="text-lg font-semibold text-ink-900 mb-4">
-                {isRTL ? 'التسعير' : 'Pricing'}
+                {t('marketplace.pricing')}
               </h2>
 
               {pricing && (
                 <div className="space-y-3">
                   <div className="flex justify-between py-2">
-                    <span className="text-ink-500">{isRTL ? 'السعر الأساسي' : 'Base Price'}</span>
+                    <span className="text-ink-500">{t('marketplace.basePrice')}</span>
                     <span className="text-ink-900">{formatCurrency(pricing.basePrice)}</span>
                   </div>
                   {pricing.urgencyFee > 0 && (
                     <div className="flex justify-between py-2">
-                      <span className="text-ink-500">{isRTL ? 'رسوم الاستعجال' : 'Urgency Fee'}</span>
+                      <span className="text-ink-500">{t('marketplace.urgencyFee')}</span>
                       <span className="text-ink-900">+{formatCurrency(pricing.urgencyFee)}</span>
                     </div>
                   )}
                   <div className="flex justify-between py-3 border-t border-cream-200">
-                    <span className="font-semibold text-ink-900">{isRTL ? 'الإجمالي' : 'Total'}</span>
+                    <span className="font-semibold text-ink-900">{t('marketplace.total')}</span>
                     <span className="text-2xl font-bold text-emerald-600">
                       {formatCurrency(pricing.totalPrice)}
                     </span>
@@ -701,9 +689,7 @@ export default function RequestAppraisal() {
               {appraiserId && (
                 <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
                   <p className="text-sm text-blue-800">
-                    {isRTL
-                      ? 'سيتم إرسال الطلب للمقيم للموافقة. بعد الموافقة، ستتمكن من إتمام الدفع.'
-                      : 'Your request will be sent to the appraiser for approval. Once accepted, you can proceed with payment.'}
+                    {t('marketplace.directBookingNote')}
                   </p>
                 </div>
               )}
@@ -714,7 +700,7 @@ export default function RequestAppraisal() {
                 onClick={() => setStep(2)}
                 className="px-6 py-2 border border-cream-300 text-ink-700 rounded-lg hover:bg-cream-50"
               >
-                {isRTL ? 'السابق' : 'Back'}
+                {t('marketplace.back')}
               </button>
               <button
                 onClick={handleSubmit}
@@ -722,16 +708,10 @@ export default function RequestAppraisal() {
                 className="px-8 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-medium"
               >
                 {loading
-                  ? isRTL
-                    ? 'جاري الإنشاء...'
-                    : 'Creating...'
+                  ? t('marketplace.creating')
                   : appraiserId
-                  ? isRTL
-                    ? 'إرسال الطلب للمقيم'
-                    : 'Send Request to Appraiser'
-                  : isRTL
-                  ? 'متابعة للدفع'
-                  : 'Proceed to Payment'}
+                  ? t('marketplace.sendRequest')
+                  : t('marketplace.proceedPayment')}
               </button>
             </div>
           </div>

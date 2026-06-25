@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { MOCK_APPRAISERS } from '@/src/lib/mock/appraisers';
 import { Button, Card, Badge } from '@/src/components/ui';
 import {
   MapPin,
@@ -15,6 +14,7 @@ import {
   Loader2,
   Users,
   Info,
+  AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { useAuth } from '@/src/contexts/AuthContext';
@@ -71,13 +71,14 @@ export const AppraiserProfilePage = () => {
 
   const [appraiser, setAppraiser] = React.useState<AppraiserData | null>(null);
   const [loading, setLoading] = React.useState(true);
-  const [useMockData, setUseMockData] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
   const [activeTab, setActiveTab] = React.useState('about');
 
   // Load appraiser data
   React.useEffect(() => {
     const loadAppraiser = async () => {
       setLoading(true);
+      setError(null);
 
       try {
         const res = await fetch(`/api/appraisers/${id}`);
@@ -85,23 +86,14 @@ export const AppraiserProfilePage = () => {
         if (res.ok) {
           const data = await res.json();
           setAppraiser(data);
-          setUseMockData(false);
+        } else if (res.status === 404) {
+          setError('Appraiser not found');
         } else {
-          // Try mock data
-          const mockAppraiser = MOCK_APPRAISERS.find(a => a.id === id);
-          if (mockAppraiser) {
-            setAppraiser(transformMockData(mockAppraiser));
-            setUseMockData(true);
-          }
+          setError('Failed to load appraiser profile');
         }
       } catch (err) {
         console.error('Error loading appraiser:', err);
-        // Fall back to mock data
-        const mockAppraiser = MOCK_APPRAISERS.find(a => a.id === id);
-        if (mockAppraiser) {
-          setAppraiser(transformMockData(mockAppraiser));
-          setUseMockData(true);
-        }
+        setError('Network error. Please check your connection.');
       }
 
       setLoading(false);
@@ -109,58 +101,6 @@ export const AppraiserProfilePage = () => {
 
     loadAppraiser();
   }, [id]);
-
-  // Transform mock data to match real data structure
-  function transformMockData(mock: typeof MOCK_APPRAISERS[0]): AppraiserData {
-    return {
-      id: mock.id,
-      full_name_en: mock.fullNameEn,
-      full_name_ar: mock.fullNameAr,
-      professional_title_en: mock.titleEn,
-      professional_title_ar: mock.titleAr,
-      years_experience: mock.yearsExperience,
-      photo_url: mock.photoUrl,
-      fra_license_number: mock.fraLicenseNumber,
-      bio_en: mock.bioEn,
-      bio_ar: mock.bioAr,
-      starting_price_egp: mock.startingPriceEgp,
-      typical_turnaround_days: mock.typicalTurnaroundDays,
-      availability: mock.availability,
-      averageRating: mock.averageRating,
-      reviewCount: mock.reviewCount,
-      appraiser_service_areas: mock.serviceDistrictsEn.map((d, i) => ({
-        district_id: `mock-${i}`,
-        districts: {
-          name_en: d,
-          name_ar: mock.serviceDistrictsAr[i] || d,
-          cities: {
-            name_en: mock.primaryGovernorateEn,
-            name_ar: mock.primaryGovernorateAr,
-            governorates: {
-              name_en: mock.primaryGovernorateEn,
-              name_ar: mock.primaryGovernorateAr,
-            },
-          },
-        },
-      })),
-      appraiser_specialties: mock.specialties.map((s, i) => ({
-        property_type_id: `mock-${i}`,
-        years_experience: s.yearsExperience,
-        property_types: {
-          name_en: s.propertyTypeEn,
-          name_ar: s.propertyTypeAr,
-        },
-      })),
-      reviews: mock.reviews.map((r, i) => ({
-        id: `mock-review-${i}`,
-        rating: r.rating,
-        comment: isAr ? r.commentAr : r.commentEn,
-        reviewer_first_name: isAr ? r.firstNameAr : r.firstNameEn,
-        reviewer_last_initial: isAr ? r.lastInitialAr : r.lastInitialEn,
-        created_at: new Date().toISOString(),
-      })),
-    };
-  }
 
   if (loading) {
     return (
@@ -170,13 +110,34 @@ export const AppraiserProfilePage = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="pt-32 px-5 text-center">
+        <AlertCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
+        <h2 className="text-h3 text-ink-600 mb-2">{error}</h2>
+        <p className="text-ink-400 mb-6">
+          {t('common.tryAgainLater', 'Please try again later or contact support.')}
+        </p>
+        <div className="flex gap-3 justify-center">
+          <Button variant="outline" onClick={() => navigate(-1)}>
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            {t('common.goBack', 'Go Back')}
+          </Button>
+          <Button onClick={() => window.location.reload()}>
+            {t('common.tryAgain', 'Try Again')}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (!appraiser) {
     return (
       <div className="pt-32 px-5 text-center">
         <Users className="h-16 w-16 text-ink-200 mx-auto mb-4" />
-        <h2 className="text-h3 text-ink-600 mb-4">Appraiser not found</h2>
+        <h2 className="text-h3 text-ink-600 mb-4">{t('appraiser.notFound', 'Appraiser not found')}</h2>
         <Link to="/appraisers" className="text-emerald-500 hover:underline">
-          Back to directory
+          {t('appraiser.backToDirectory', 'Back to directory')}
         </Link>
       </div>
     );

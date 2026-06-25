@@ -1,8 +1,18 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
+import { createHash } from 'crypto';
 import WebSocket from 'ws';
 import * as paymob from './payments/paymob';
+
+/**
+ * Hash a token using SHA-256.
+ * Used for admin invite tokens - we store the hash, not the raw token.
+ * This prevents token exposure if the database is compromised.
+ */
+function hashToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
 
 // Type definitions
 type UserRole = 'owner' | 'appraiser' | 'bank' | 'admin';
@@ -73,6 +83,139 @@ function getClientWithAuth(accessToken: string): SupabaseClient {
     global: { headers: { Authorization: `Bearer ${accessToken}` } },
     realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket },
   });
+}
+
+// ============================================================================
+// IMAGE HELPERS FOR PDF GENERATION
+// ============================================================================
+
+// Transparent 1x1 PNG placeholder for failed images
+const PLACEHOLDER_IMAGE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+
+// Known storage buckets in the system
+const KNOWN_BUCKETS = ['imports', 'report-photos', 'appraiser-assets', 'verification_documents', 'job-deliverables'];
+
+/**
+ * Convert a storage URL to a base64 data URL.
+ * This is needed because Puppeteer can't access private Supabase storage URLs.
+ * We fetch the image server-side and embed it directly in the HTML.
+ *
+ * Includes retry logic and proper bucket detection.
+ */
+async function convertImageToBase64(
+  supabase: SupabaseClient,
+  storagePathOrUrl: string,
+  maxRetries: number = 2
+): Promise<string> {
+  // If it's already a data URL, return as-is
+  if (!storagePathOrUrl || storagePathOrUrl.startsWith('data:')) {
+    return storagePathOrUrl || PLACEHOLDER_IMAGE;
+  }
+
+  // Extract the storage path and bucket from a Supabase public URL
+  // URL format: https://{project}.supabase.co/storage/v1/object/public/{bucket}/{path}
+  let bucket = 'imports';
+  let storagePath = storagePathOrUrl;
+
+  if (storagePathOrUrl.includes('supabase.co/storage/')) {
+    // Handle both /public/ and /sign/ URLs
+    const publicMatch = storagePathOrUrl.match(/\/storage\/v1\/object\/(?:public|sign)\/([^\/]+)\/(.+)/);
+    if (publicMatch) {
+      bucket = publicMatch[1];
+      storagePath = publicMatch[2];
+      // Remove query params if present (signed URLs have tokens)
+      storagePath = storagePath.split('?')[0];
+    }
+  } else {
+    // It's a raw storage path - try to detect bucket from path prefix
+    for (const knownBucket of KNOWN_BUCKETS) {
+      if (storagePathOrUrl.startsWith(knownBucket + '/')) {
+        bucket = knownBucket;
+        storagePath = storagePathOrUrl.substring(knownBucket.length + 1);
+        break;
+      }
+    }
+  }
+
+  // Retry logic with exponential backoff
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      if (attempt > 0) {
+        // Wait before retry (exponential backoff: 100ms, 400ms, 900ms...)
+        await new Promise(resolve => setTimeout(resolve, attempt * attempt * 100));
+        console.log(`[Image] Retry ${attempt}/${maxRetries} for ${storagePath}`);
+      }
+
+      // Download the image using service client (bypasses RLS)
+      const serviceClient = getServiceClient();
+      const { data, error } = await serviceClient.storage
+        .from(bucket)
+        .download(storagePath);
+
+      if (error) {
+        lastError = new Error(error.message);
+        continue; // Try next attempt
+      }
+
+      if (!data) {
+        lastError = new Error('No data returned');
+        continue;
+      }
+
+      // Convert to base64
+      const buffer = Buffer.from(await data.arrayBuffer());
+      const base64 = buffer.toString('base64');
+
+      // Determine MIME type from file extension
+      const ext = storagePath.split('.').pop()?.toLowerCase() || 'jpeg';
+      const mimeTypes: Record<string, string> = {
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png',
+        'gif': 'image/gif',
+        'webp': 'image/webp',
+        'svg': 'image/svg+xml',
+      };
+      const mimeType = mimeTypes[ext] || 'image/jpeg';
+
+      return `data:${mimeType};base64,${base64}`;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+    }
+  }
+
+  // All retries failed
+  console.error(`[Image] Failed to convert image after ${maxRetries + 1} attempts:`, {
+    bucket,
+    path: storagePath,
+    error: lastError?.message,
+  });
+
+  // Return placeholder instead of broken URL (Puppeteer can't access private URLs anyway)
+  return PLACEHOLDER_IMAGE;
+}
+
+/**
+ * Process all photos in a report, converting storage URLs to base64 data URLs.
+ * This ensures PDF generation works with private storage buckets.
+ */
+async function processPhotosForPDF(
+  supabase: SupabaseClient,
+  photos: Array<{ storage_path: string; category: string; caption: string | null }>
+): Promise<Array<{ storage_path: string; category: string; caption: string | null }>> {
+  if (!photos || photos.length === 0) {
+    return [];
+  }
+
+  const processedPhotos = await Promise.all(
+    photos.map(async (photo) => ({
+      ...photo,
+      storage_path: await convertImageToBase64(supabase, photo.storage_path),
+    }))
+  );
+
+  return processedPhotos;
 }
 
 // ============================================================================
@@ -186,13 +329,19 @@ router.post('/auth/create-profile', async (req: Request, res: Response) => {
     // Use service client for bootstrapping new user (no auth yet)
     const supabase = getServiceClient();
 
-    // Check if this is an admin invite
-    let userRole = role || 'owner';
+    // Check if this is an admin invite.
+    // Only self-serve roles are accepted from the client; 'admin' can never be
+    // set directly via the request body — it is granted solely by consuming a
+    // valid invite token below.
+    let userRole = ['owner', 'appraiser', 'bank'].includes(role) ? role : 'owner';
     if (inviteToken) {
+      // Hash the incoming token to compare against stored hash
+      const hashedInviteToken = hashToken(inviteToken);
+
       const { data: invite, error: inviteError } = await supabase
         .from('admin_invites')
         .select('*')
-        .eq('token', inviteToken)
+        .eq('token', hashedInviteToken)  // Compare hashed tokens
         .is('consumed_at', null)
         .gt('expires_at', new Date().toISOString())
         .single();
@@ -217,15 +366,22 @@ router.post('/auth/create-profile', async (req: Request, res: Response) => {
       }
     }
 
-    // Create user profile
+    // Ensure the app-side user row exists. The handle_new_user DB trigger
+    // normally creates it atomically at signup; this upsert is idempotent and
+    // also (a) elevates an invited admin — the trigger never grants admin from
+    // client metadata — and (b) serves as the self-heal path for any auth user
+    // that was orphaned before the trigger existed.
     const { data, error } = await supabase
       .from('users')
-      .insert({
-        auth_id: authId,
-        email,
-        full_name: fullName,
-        role: userRole,
-      })
+      .upsert(
+        {
+          auth_id: authId,
+          email,
+          full_name: fullName,
+          role: userRole,
+        },
+        { onConflict: 'auth_id' }
+      )
       .select()
       .single();
 
@@ -234,16 +390,20 @@ router.post('/auth/create-profile', async (req: Request, res: Response) => {
       return res.status(500).json({ error: 'Failed to create user profile' });
     }
 
-    // If appraiser, create onboarding draft
+    // Ensure an onboarding draft exists for appraisers. ignoreDuplicates keeps
+    // any in-progress draft intact on repeat calls.
     if (userRole === 'appraiser') {
       await supabase
         .from('appraiser_onboarding_drafts')
-        .insert({
-          user_id: data.id,
-          current_step: 1,
-          draft_data: { fullNameEn: fullName },
-          uploaded_files: [],
-        });
+        .upsert(
+          {
+            user_id: data.id,
+            current_step: 1,
+            draft_data: { fullNameEn: fullName },
+            uploaded_files: [],
+          },
+          { onConflict: 'user_id', ignoreDuplicates: true }
+        );
     }
 
     res.json({ user: data });
@@ -258,12 +418,15 @@ router.get('/auth/validate-invite/:token', async (req: Request, res: Response) =
   const { token } = req.params;
 
   try {
+    // Hash the incoming token to compare against stored hash
+    const hashedToken = hashToken(token);
+
     // Use anon client - RLS policy allows public lookup of unexpired invites
     const supabase = getAnonClient();
     const { data: invite, error } = await supabase
       .from('admin_invites')
       .select('email, expires_at')
-      .eq('token', token)
+      .eq('token', hashedToken)  // Compare hashed tokens
       .is('consumed_at', null)
       .gt('expires_at', new Date().toISOString())
       .single();
@@ -799,39 +962,104 @@ router.get('/admin/verifications', authMiddleware, adminMiddleware, async (req: 
     const supabase = req.supabase!;
     const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
 
-    let query = supabase
-      .from('appraiser_profiles')
-      .select(`
-        *,
-        users!appraiser_profiles_user_id_fkey(email, full_name),
-        appraiser_service_areas(
-          district_id,
-          districts(name_en, name_ar, city_id, cities(name_en, name_ar))
-        ),
-        appraiser_specialties(
-          property_type_id,
-          years_experience,
-          property_types(name_en, name_ar)
-        ),
-        verification_documents(*)
-      `, { count: 'exact' })
-      .order('submitted_at', { ascending: false })
-      .range(offset, offset + parseInt(limit as string) - 1);
+    // ------------------------------------------------------------------
+    // Submitted profiles (rows that exist in appraiser_profiles).
+    // Skipped entirely when viewing the synthetic 'incomplete' tab.
+    // ------------------------------------------------------------------
+    let profiles: Record<string, unknown>[] = [];
+    let submittedCount = 0;
 
-    if (status) {
-      query = query.eq('status', status);
+    if (status !== 'incomplete') {
+      let query = supabase
+        .from('appraiser_profiles')
+        .select(`
+          *,
+          users!appraiser_profiles_user_id_fkey(email, full_name),
+          appraiser_service_areas(
+            district_id,
+            districts(name_en, name_ar, city_id, cities(name_en, name_ar))
+          ),
+          appraiser_specialties(
+            property_type_id,
+            years_experience,
+            property_types(name_en, name_ar)
+          ),
+          verification_documents(*)
+        `, { count: 'exact' })
+        .order('submitted_at', { ascending: false })
+        .range(offset, offset + parseInt(limit as string) - 1);
+
+      if (status) {
+        query = query.eq('status', status);
+      }
+
+      const { data, error, count } = await query;
+      if (error) throw error;
+      profiles = data || [];
+      submittedCount = count || 0;
     }
 
-    const { data, error, count } = await query;
+    // ------------------------------------------------------------------
+    // Incomplete appraisers: role='appraiser' users who have not yet
+    // submitted onboarding, so no appraiser_profiles row exists. We
+    // synthesize read-only queue entries from the user + draft so admins
+    // can see them. (They are not approvable until they submit.)
+    // ------------------------------------------------------------------
+    const { data: appraiserUsers } = await supabase
+      .from('users')
+      .select('id, email, full_name, created_at')
+      .eq('role', 'appraiser');
 
-    if (error) throw error;
+    const { data: profileUsers } = await supabase
+      .from('appraiser_profiles')
+      .select('user_id');
 
-    // Get counts by status
+    const withProfile = new Set((profileUsers || []).map((p) => p.user_id));
+    const incompleteUsers = (appraiserUsers || []).filter((u) => !withProfile.has(u.id));
+    const incompleteCount = incompleteUsers.length;
+
+    let incompleteProfiles: Record<string, unknown>[] = [];
+    if ((!status || status === 'incomplete') && incompleteUsers.length > 0) {
+      const { data: drafts } = await supabase
+        .from('appraiser_onboarding_drafts')
+        .select('user_id, current_step, updated_at')
+        .in('user_id', incompleteUsers.map((u) => u.id));
+
+      const draftMap = new Map((drafts || []).map((d) => [d.user_id, d]));
+
+      incompleteProfiles = incompleteUsers
+        .map((u) => {
+          const draft = draftMap.get(u.id);
+          return {
+            id: `draft:${u.id}`,
+            user_id: u.id,
+            full_name_en: u.full_name,
+            full_name_ar: null,
+            phone: null,
+            fra_license_number: null,
+            photo_url: null,
+            status: 'incomplete',
+            is_draft: true,
+            current_step: draft?.current_step ?? 1,
+            submitted_at: null,
+            created_at: u.created_at,
+            users: { email: u.email, full_name: u.full_name },
+            appraiser_service_areas: [],
+            appraiser_specialties: [],
+            verification_documents: [],
+          };
+        })
+        // newest signups first
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    }
+
+    // Get counts for submitted statuses
     const { data: counts } = await supabase
       .from('appraiser_profiles')
       .select('status')
       .then(({ data }) => {
         const statusCounts: Record<string, number> = {
+          incomplete: incompleteCount,
           pending: 0,
           under_review: 0,
           verified: 0,
@@ -845,9 +1073,19 @@ router.get('/admin/verifications', authMiddleware, adminMiddleware, async (req: 
         return { data: statusCounts };
       });
 
+    // Merge: incomplete-only, all (incomplete first), or a specific status
+    let merged: Record<string, unknown>[];
+    if (status === 'incomplete') {
+      merged = incompleteProfiles;
+    } else if (!status) {
+      merged = [...incompleteProfiles, ...profiles];
+    } else {
+      merged = profiles;
+    }
+
     res.json({
-      profiles: data,
-      total: count,
+      profiles: merged,
+      total: submittedCount + (status && status !== 'incomplete' ? 0 : incompleteCount),
       statusCounts: counts,
     });
   } catch (err) {
@@ -1063,7 +1301,10 @@ router.post('/admin/invites', authMiddleware, adminMiddleware, async (req: Authe
       return res.status(400).json({ error: 'Email already has a pending invite' });
     }
 
-    const token = uuidv4();
+    // Generate token and hash it for storage
+    // The raw token is sent in the invite URL, but we store only the hash
+    const rawToken = uuidv4();
+    const hashedToken = hashToken(rawToken);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
@@ -1071,7 +1312,7 @@ router.post('/admin/invites', authMiddleware, adminMiddleware, async (req: Authe
       .from('admin_invites')
       .insert({
         email: email.toLowerCase(),
-        token,
+        token: hashedToken,  // Store hashed token
         invited_by: req.user!.id,
         expires_at: expiresAt.toISOString(),
       })
@@ -1093,7 +1334,7 @@ router.post('/admin/invites', authMiddleware, adminMiddleware, async (req: Authe
 
     res.json({
       invite: data,
-      inviteUrl: `${process.env.APP_URL || 'http://localhost:3000'}/signup?invite=${token}`,
+      inviteUrl: `${process.env.APP_URL || 'http://localhost:3000'}/signup?invite=${rawToken}`,
     });
   } catch (err) {
     console.error('Error creating invite:', err);
@@ -2091,27 +2332,55 @@ router.get('/reports/:id/pdf', authMiddleware, async (req: AuthenticatedRequest,
       return res.status(400).json({ error: 'Report must be finalized before generating PDF' });
     }
 
-    // Get appraiser info (license number is in appraiser_profiles, not users)
+    // Get appraiser info including signature and stamp
     const { data: appraiser } = await supabase
       .from('users')
       .select(`
         full_name,
-        appraiser_profiles(fra_license_number)
+        appraiser_profiles(fra_license_number, signature_url, stamp_url)
       `)
       .eq('id', report.appraiser_id)
       .single();
 
+    // Extract appraiser profile data
+    const appraiserProfile = appraiser?.appraiser_profiles as {
+      fra_license_number?: string;
+      signature_url?: string | null;
+      stamp_url?: string | null;
+    } | null;
+
+    // Convert signature and stamp URLs to base64 for PDF embedding
+    let signatureBase64: string | null = null;
+    let stampBase64: string | null = null;
+
+    if (appraiserProfile?.signature_url) {
+      signatureBase64 = await convertImageToBase64(supabase, appraiserProfile.signature_url);
+    }
+    if (appraiserProfile?.stamp_url) {
+      stampBase64 = await convertImageToBase64(supabase, appraiserProfile.stamp_url);
+    }
+
     // Flatten appraiser data for PDF generation
     const appraiserForPdf = appraiser ? {
       full_name: appraiser.full_name,
-      license_number: (appraiser.appraiser_profiles as { fra_license_number?: string } | null)?.fra_license_number || null,
+      license_number: appraiserProfile?.fra_license_number || null,
+      signature_url: signatureBase64,
+      stamp_url: stampBase64,
     } : undefined;
+
+    // Convert photo storage URLs to base64 data URLs for PDF embedding
+    // This is necessary because Puppeteer can't access private Supabase storage
+    const processedPhotos = await processPhotosForPDF(
+      supabase,
+      report.photos as Array<{ storage_path: string; category: string; caption: string | null }>
+    );
 
     // Dynamic import to avoid loading puppeteer when not needed
     const { generatePDF } = await import('./pdf');
 
     const pdfBuffer = await generatePDF({
       ...report,
+      photos: processedPhotos,
       appraiser: appraiserForPdf,
     });
 
@@ -2528,63 +2797,32 @@ router.post('/imports/:id/approve', authMiddleware, verifiedAppraiserMiddleware,
         .insert(comparableInserts);
     }
 
-    // Save images to report_photos table
+    // Save images to report_photos table. _images is already filtered to real,
+    // displayable photos with their final category + caption assigned upstream
+    // (selectDisplayablePhotos in the import pipeline), so insert as-is.
     const images = extractedData._images as Array<{
-      label: string;
-      path: string;
       url: string;
-      roomType?: string;
-      aiDescription?: string;
+      category: string;
+      caption: string | null;
     }> | undefined;
 
     if (images && Array.isArray(images) && images.length > 0) {
-      // Map import labels to PDF-compatible categories
-      const mapLabelToCategory = (img: typeof images[0]): string => {
-        // For interior photos, use roomType if available
-        if (img.label === 'interior_photos' && img.roomType) {
-          return img.roomType; // kitchen, bedroom, bathroom, etc.
-        }
-
-        // Map import labels to PDF categories
-        const labelMap: Record<string, string> = {
-          'exterior_photos': 'facade',
-          'interior_photos': 'other',
-          'location_map': 'location_map',
-          'floor_plan': 'other',
-          'site_sketch': 'other',
-          'aerial_view': 'location_map',
-          'street_view': 'street_view',
-          'document_scan': 'other',
-          'appraiser_signature': 'other',
-          'company_logo': 'other',
-          'unknown': 'other',
-        };
-        return labelMap[img.label] || 'other';
-      };
-
-      // Filter out logos and signatures - they shouldn't appear in photo grid
-      const photoImages = images.filter(img =>
-        img.label !== 'company_logo' && img.label !== 'appraiser_signature'
-      );
-
-      const photoInserts = photoImages.map((img, index) => ({
+      const photoInserts = images.map((img, index) => ({
         report_id: report.id,
         storage_path: img.url, // Use public URL for display
-        category: mapLabelToCategory(img),
-        caption: img.aiDescription || null,
+        category: img.category,
+        caption: img.caption || null,
         ord: index,
       }));
 
-      if (photoInserts.length > 0) {
-        const { error: photoError } = await serviceSupabase
-          .from('report_photos')
-          .insert(photoInserts);
+      const { error: photoError } = await serviceSupabase
+        .from('report_photos')
+        .insert(photoInserts);
 
-        if (photoError) {
-          console.error('Failed to insert report photos:', photoError);
-        } else {
-          console.log(`[Import Approval] Inserted ${photoInserts.length} photos for report ${report.id}`);
-        }
+      if (photoError) {
+        console.error('Failed to insert report photos:', photoError);
+      } else {
+        console.log(`[Import Approval] Inserted ${photoInserts.length} photos for report ${report.id}`);
       }
     }
 

@@ -1,0 +1,723 @@
+openapi: 3.0.3
+info:
+  title: Beit Index Bank API
+  description: |
+    API for banks to access the Beit Index real estate appraisal marketplace.
+
+    ## Authentication
+    All endpoints require a Bearer token in the Authorization header.
+    Obtain tokens via Supabase authentication.
+
+    ## Rate Limits
+    - Standard: 100 requests per minute
+    - Analytics: 30 requests per minute
+
+    ## Pricing
+    All prices are in **piasters** (EGP × 100). Divide by 100 for EGP.
+  version: 1.0.0
+  contact:
+    name: Beit Index Support
+    email: support@beit-index.com
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://api.beit-index.com/api
+    description: Production server
+  - url: http://localhost:3001/api
+    description: Development server
+
+tags:
+  - name: Marketplace
+    description: Browse and search available appraisal reports
+  - name: Cart
+    description: Shopping cart management
+  - name: Purchases
+    description: Completed purchases and report access
+  - name: Analytics
+    description: Market data and analytics
+
+security:
+  - bearerAuth: []
+
+paths:
+  # ============================================================================
+  # MARKETPLACE
+  # ============================================================================
+  /bank/marketplace:
+    get:
+      tags: [Marketplace]
+      summary: Browse available reports
+      description: |
+        Returns a paginated list of anonymized appraisal reports available for purchase.
+        Results can be filtered by property type, location, and other criteria.
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: Page number (1-indexed)
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+          description: Items per page
+        - name: property_type
+          in: query
+          schema:
+            type: string
+            enum: [apartment, villa, land, commercial, industrial]
+          description: Filter by property type
+        - name: governorate_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter by governorate
+        - name: city_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter by city
+        - name: district_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter by district
+        - name: min_area
+          in: query
+          schema:
+            type: integer
+          description: Minimum area in sqm
+        - name: max_area
+          in: query
+          schema:
+            type: integer
+          description: Maximum area in sqm
+        - name: report_kind
+          in: query
+          schema:
+            type: string
+            enum: [brief, detailed, full]
+          description: Filter by report type
+      responses:
+        '200':
+          description: List of available reports
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  listings:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ReportListing'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /marketplace/pricing:
+    get:
+      tags: [Marketplace]
+      summary: Get volume discount tiers
+      description: Returns the available volume discount tiers for bulk purchases
+      security: []  # Public endpoint
+      responses:
+        '200':
+          description: Volume discount tiers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  discounts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/VolumeDiscount'
+
+  # ============================================================================
+  # CART
+  # ============================================================================
+  /bank/cart:
+    get:
+      tags: [Cart]
+      summary: Get cart contents
+      description: Returns all items currently in the bank's shopping cart
+      responses:
+        '200':
+          description: Cart contents with pricing
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CartItem'
+                  subtotal_piasters:
+                    type: integer
+                    example: 250000
+                  discount_percent:
+                    type: number
+                    example: 15
+                  discount_amount_piasters:
+                    type: integer
+                    example: 37500
+                  total_piasters:
+                    type: integer
+                    example: 212500
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Cart]
+      summary: Add item to cart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [listing_id]
+              properties:
+                listing_id:
+                  type: string
+                  format: uuid
+                  description: ID of the report listing to add
+      responses:
+        '200':
+          description: Item added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  cart_item_id:
+                    type: string
+                    format: uuid
+        '400':
+          description: Item already in cart or already purchased
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Listing not found
+
+    delete:
+      tags: [Cart]
+      summary: Remove item from cart
+      parameters:
+        - name: listing_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Item removed successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Item not in cart
+
+  /bank/checkout:
+    post:
+      tags: [Cart]
+      summary: Checkout cart
+      description: |
+        Initiates payment for all items in the cart.
+        Returns a Paymob payment iframe URL for completing the transaction.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payment_method:
+                  type: string
+                  enum: [card, wallet]
+                  default: card
+      responses:
+        '200':
+          description: Checkout initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  purchase_id:
+                    type: string
+                    format: uuid
+                  payment_url:
+                    type: string
+                    format: uri
+                    description: Paymob iframe URL
+                  total_piasters:
+                    type: integer
+        '400':
+          description: Cart is empty
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================================================
+  # PURCHASES
+  # ============================================================================
+  /bank/reports:
+    get:
+      tags: [Purchases]
+      summary: Get purchased reports
+      description: Returns all reports the bank has purchased
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by location or property type
+      responses:
+        '200':
+          description: List of purchased reports
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reports:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PurchasedReport'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /bank/reports/{listingId}:
+    get:
+      tags: [Purchases]
+      summary: Get purchased report details
+      description: Returns full details of a purchased report including valuation data
+      parameters:
+        - name: listingId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Full report details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FullReport'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Report not purchased by this bank
+        '404':
+          description: Report not found
+
+  # ============================================================================
+  # ANALYTICS
+  # ============================================================================
+  /analytics/overview:
+    get:
+      tags: [Analytics]
+      summary: Market overview statistics
+      description: High-level market statistics based on available data
+      responses:
+        '200':
+          description: Market overview
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_reports:
+                    type: integer
+                  average_valuation:
+                    type: integer
+                    description: Average valuation in piasters
+                  property_type_breakdown:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                  top_governorates:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        governorate_id:
+                          type: string
+                        name:
+                          type: string
+                        count:
+                          type: integer
+
+  /analytics/price-trends:
+    get:
+      tags: [Analytics]
+      summary: Price trends by zone
+      description: Historical price trends broken down by geographic zone
+      parameters:
+        - name: governorate_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: property_type
+          in: query
+          schema:
+            type: string
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [3m, 6m, 12m]
+            default: 6m
+      responses:
+        '200':
+          description: Price trend data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trends:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        period:
+                          type: string
+                        average_price_per_sqm:
+                          type: integer
+                        report_count:
+                          type: integer
+
+  /analytics/zone-breakdown:
+    get:
+      tags: [Analytics]
+      summary: Property breakdown by zone
+      description: Property type distribution across geographic zones
+      parameters:
+        - name: governorate_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Zone breakdown data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  zones:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        zone_name:
+                          type: string
+                        property_types:
+                          type: object
+                          additionalProperties:
+                            type: integer
+
+  /analytics/comparables:
+    get:
+      tags: [Analytics]
+      summary: Search comparable properties
+      description: Find similar properties for comparison analysis
+      parameters:
+        - name: property_type
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: governorate_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: min_area
+          in: query
+          schema:
+            type: integer
+        - name: max_area
+          in: query
+          schema:
+            type: integer
+        - name: bedrooms
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Comparable properties
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  comparables:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ComparableProperty'
+
+  # ============================================================================
+  # ACCOUNT
+  # ============================================================================
+  /bank/account:
+    get:
+      tags: [Account]
+      summary: Get bank account info
+      description: Returns the current bank's account details and usage statistics
+      responses:
+        '200':
+          description: Bank account information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankAccount'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token from Supabase authentication
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid authentication token
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: Not authenticated
+
+  schemas:
+    ReportListing:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        property_type:
+          type: string
+          enum: [apartment, villa, land, commercial, industrial]
+        report_kind:
+          type: string
+          enum: [brief, detailed, full]
+        approximate_area:
+          type: integer
+          description: Area in sqm
+        bedrooms:
+          type: integer
+        bathrooms:
+          type: integer
+        governorate:
+          type: object
+          properties:
+            name_en:
+              type: string
+            name_ar:
+              type: string
+        city:
+          type: object
+          properties:
+            name_en:
+              type: string
+            name_ar:
+              type: string
+        district:
+          type: object
+          properties:
+            name_en:
+              type: string
+            name_ar:
+              type: string
+        listing_price_piasters:
+          type: integer
+          example: 50000
+        listed_at:
+          type: string
+          format: date-time
+        is_in_cart:
+          type: boolean
+        is_purchased:
+          type: boolean
+
+    CartItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        listing:
+          $ref: '#/components/schemas/ReportListing'
+        added_at:
+          type: string
+          format: date-time
+
+    VolumeDiscount:
+      type: object
+      properties:
+        min_quantity:
+          type: integer
+          example: 10
+        discount_percent:
+          type: number
+          example: 15.0
+
+    PurchasedReport:
+      type: object
+      properties:
+        listing_id:
+          type: string
+          format: uuid
+        property_type:
+          type: string
+        approximate_area:
+          type: integer
+        location:
+          type: string
+          description: Formatted location string
+        purchased_at:
+          type: string
+          format: date-time
+        price_paid_piasters:
+          type: integer
+
+    FullReport:
+      type: object
+      properties:
+        listing_id:
+          type: string
+          format: uuid
+        property_type:
+          type: string
+        report_kind:
+          type: string
+        approximate_area:
+          type: integer
+        bedrooms:
+          type: integer
+        bathrooms:
+          type: integer
+        location:
+          type: object
+          properties:
+            governorate:
+              type: string
+            city:
+              type: string
+            district:
+              type: string
+        valuation:
+          type: object
+          properties:
+            final_value_piasters:
+              type: integer
+            cost_approach_value:
+              type: integer
+            sales_comparison_value:
+              type: integer
+            income_approach_value:
+              type: integer
+            chosen_method:
+              type: string
+        appraiser:
+          type: object
+          properties:
+            name:
+              type: string
+            license_number:
+              type: string
+        appraisal_date:
+          type: string
+          format: date
+
+    ComparableProperty:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        property_type:
+          type: string
+        area_sqm:
+          type: integer
+        bedrooms:
+          type: integer
+        location:
+          type: string
+        valuation_piasters:
+          type: integer
+        price_per_sqm:
+          type: integer
+        appraisal_date:
+          type: string
+          format: date
+
+    BankAccount:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        subscription_tier:
+          type: string
+          enum: [trial, basic, pro, enterprise]
+        total_purchases:
+          type: integer
+        total_spent_piasters:
+          type: integer
+        api_enabled:
+          type: boolean
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        total_pages:
+          type: integer

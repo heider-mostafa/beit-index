@@ -20,6 +20,8 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   signUp: (email: string, password: string, fullName: string, role: UserRole) => Promise<{ error: AuthError | Error | null; user?: User }>;
+  verifyOtp: (email: string, token: string) => Promise<{ error: AuthError | Error | null }>;
+  resendOtp: (email: string) => Promise<{ error: AuthError | Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signInWithGoogle: () => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
@@ -42,10 +44,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from('users')
         .select('id, auth_id, email, full_name, role')
         .eq('auth_id', authId)
-        .single<UserRow>();
+        .maybeSingle<UserRow>();
 
-      if (error || !data) {
+      if (error) {
         console.error('Error fetching profile:', error);
+        return null;
+      }
+
+      if (!data) {
+        // No app-side profile row (yet). Caller handles self-heal.
         return null;
       }
 
@@ -60,6 +67,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Error fetching profile:', err);
       return null;
     }
+  };
+
+  // Load the profile, self-healing if the app-side row is missing. An auth user
+  // can exist without a public.users row if signup provisioning was interrupted
+  // before the handle_new_user trigger was in place. In that case we recreate
+  // the row (server-side, idempotent) from the auth metadata, then refetch.
+  const ensureProfile = async (authUser: User): Promise<UserProfile | null> => {
+    const existing = await fetchProfile(authUser.id);
+    if (existing) return existing;
+
+    // Only heal confirmed accounts to avoid provisioning unverified signups.
+    if (!authUser.email_confirmed_at) return null;
+
+    try {
+      await fetch('/api/auth/create-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          authId: authUser.id,
+          email: authUser.email,
+          fullName: authUser.user_metadata?.full_name || authUser.email,
+          role: authUser.user_metadata?.role || 'owner',
+        }),
+      });
+    } catch (err) {
+      console.error('Self-heal profile creation failed:', err);
+      return null;
+    }
+
+    return fetchProfile(authUser.id);
   };
 
   useEffect(() => {
@@ -77,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(initialSession?.user ?? null);
 
           if (initialSession?.user) {
-            const userProfile = await fetchProfile(initialSession.user.id);
+            const userProfile = await ensureProfile(initialSession.user);
             if (mounted) {
               setProfile(userProfile);
             }
@@ -93,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               setUser(newSession?.user ?? null);
 
               if (newSession?.user) {
-                const userProfile = await fetchProfile(newSession.user.id);
+                const userProfile = await ensureProfile(newSession.user);
                 if (mounted) {
                   setProfile(userProfile);
                 }
@@ -156,6 +193,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Verify the 6-digit signup code. On success Supabase establishes a session,
+  // which onAuthStateChange picks up and runs ensureProfile.
+  const verifyOtp = async (email: string, token: string) => {
+    const supabase = getSupabaseBrowserClient();
+    const { error } = await supabase.auth.verifyOtp({ email, token, type: 'signup' });
+    return { error };
+  };
+
+  // Re-send the signup confirmation code.
+  const resendOtp = async (email: string) => {
+    const supabase = getSupabaseBrowserClient();
+    const { error } = await supabase.auth.resend({ type: 'signup', email });
+    return { error };
+  };
+
   const signIn = async (email: string, password: string) => {
     const supabase = getSupabaseBrowserClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -197,6 +249,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profile,
         loading,
         signUp,
+        verifyOtp,
+        resendOtp,
         signIn,
         signInWithGoogle,
         signOut,
