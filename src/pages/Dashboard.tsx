@@ -65,6 +65,8 @@ export function DashboardPage() {
   const [statusFilter, setStatusFilter] = React.useState<ReportStatus | 'all'>('all');
   const [profileId, setProfileId] = React.useState<string | null>(null);
   const [profileStatus, setProfileStatus] = React.useState<string | null>(null);
+  const [hasProfile, setHasProfile] = React.useState<boolean | null>(null);
+  const [draftStep, setDraftStep] = React.useState<number | null>(null);
   const [showNewReportModal, setShowNewReportModal] = React.useState(false);
   const [downloadingPdf, setDownloadingPdf] = React.useState<string | null>(null);
 
@@ -144,6 +146,8 @@ export function DashboardPage() {
           if (data.profileStatus) {
             setProfileStatus(data.profileStatus);
           }
+          setHasProfile(!!data.hasProfile);
+          setDraftStep(data.draftStep || null);
         })
         .catch(console.error);
     }
@@ -199,6 +203,25 @@ export function DashboardPage() {
   return (
     <div className="min-h-screen bg-cream-100 pt-24 pb-16">
       <div className="max-w-6xl mx-auto px-5">
+        {/* Incomplete-onboarding banner: appraiser has not submitted a profile yet */}
+        {hasProfile === false && (
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-lg border border-amber-200 bg-amber-50 px-5 py-4">
+            <div className="flex items-start gap-3">
+              <Clock className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-body-s font-medium text-amber-900">Complete your appraiser profile</p>
+                <p className="text-[13px] text-amber-700">
+                  Finish onboarding and submit your profile for verification before you can be approved and receive work
+                  {draftStep ? ` — you're on step ${draftStep} of 6.` : '.'}
+                </p>
+              </div>
+            </div>
+            <Link to="/onboarding" className="flex-shrink-0">
+              <Button variant="primary">Continue onboarding</Button>
+            </Link>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>

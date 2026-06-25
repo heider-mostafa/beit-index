@@ -393,6 +393,11 @@ router.post('/auth/create-profile', async (req: Request, res: Response) => {
       .single();
 
     if (error) {
+      // Unique violation = email already registered under another account.
+      // This is a "please log in" situation, not a server error.
+      if ((error as { code?: string }).code === '23505') {
+        return res.status(409).json({ error: 'An account with this email already exists. Please log in.' });
+      }
       console.error('Error creating user profile:', error);
       return res.status(500).json({ error: 'Failed to create user profile' });
     }

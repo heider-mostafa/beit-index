@@ -354,6 +354,15 @@ export const SignupPage = () => {
       return;
     }
 
+    // Supabase returns a user with an empty identities array when the email is
+    // already registered (enumeration protection) — no new account is created.
+    // Guide the user to log in instead of failing later in create-profile.
+    if (result.user && Array.isArray(result.user.identities) && result.user.identities.length === 0) {
+      setError('An account with this email already exists. Please log in instead.');
+      setLoading(false);
+      return;
+    }
+
     // Create profile via API (handles invite tokens and onboarding draft)
     if (result.user) {
       try {
