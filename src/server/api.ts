@@ -2365,11 +2365,16 @@ router.get('/reports/:id/pdf', authMiddleware, async (req: AuthenticatedRequest,
     let signatureBase64: string | null = null;
     let stampBase64: string | null = null;
 
+    // A missing/broken image resolves to PLACEHOLDER_IMAGE; treat that as "no
+    // image" so the PDF falls back to the appraiser's typed name (signature)
+    // and the dashed stamp box, rather than embedding an invisible 1x1 pixel.
     if (appraiserProfile?.signature_url) {
-      signatureBase64 = await convertImageToBase64(supabase, appraiserProfile.signature_url, 'appraiser-assets');
+      const sig = await convertImageToBase64(supabase, appraiserProfile.signature_url, 'appraiser-assets');
+      signatureBase64 = sig === PLACEHOLDER_IMAGE ? null : sig;
     }
     if (appraiserProfile?.stamp_url) {
-      stampBase64 = await convertImageToBase64(supabase, appraiserProfile.stamp_url, 'appraiser-assets');
+      const stamp = await convertImageToBase64(supabase, appraiserProfile.stamp_url, 'appraiser-assets');
+      stampBase64 = stamp === PLACEHOLDER_IMAGE ? null : stamp;
     }
 
     // Flatten appraiser data for PDF generation
