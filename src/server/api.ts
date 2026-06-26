@@ -320,6 +320,20 @@ router.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// Temporary diagnostic: reports which env vars reach the function (booleans
+// only — no secret values). Used to debug 500s on Vercel. Safe to remove once
+// the deployment is confirmed working.
+router.get('/debug/env', (_req, res) => {
+  res.json({
+    SUPABASE_URL: !!process.env.SUPABASE_URL,
+    SUPABASE_ANON_KEY: !!process.env.SUPABASE_ANON_KEY,
+    SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    GEMINI_API_KEY: !!process.env.GEMINI_API_KEY,
+    nodeVersion: process.version,
+    vercel: !!process.env.VERCEL,
+  });
+});
+
 // ============================================================================
 // AUTH ROUTES
 // ============================================================================
