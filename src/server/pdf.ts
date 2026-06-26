@@ -3,6 +3,11 @@ import { formatEGP } from '@/src/lib/appraisal/engine';
 
 // Find Chrome executable path based on OS
 function getChromePath(): string {
+  // In containers/production, point at the installed Chromium via env var
+  // (set in the Dockerfile). Falls back to per-OS defaults for local dev.
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+    return process.env.PUPPETEER_EXECUTABLE_PATH;
+  }
   const platform = process.platform;
   if (platform === 'darwin') {
     return '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -11,6 +16,31 @@ function getChromePath(): string {
   } else {
     return '/usr/bin/google-chrome';
   }
+}
+
+// Resolve Puppeteer launch options for the current environment.
+// On Vercel/Lambda there is no system Chrome, so use the serverless Chromium
+// build (@sparticuz/chromium). Locally and in containers, use the system/installed
+// Chrome via getChromePath(). The serverless package is imported dynamically so
+// it never loads during local development.
+async function getLaunchOptions(): Promise<Parameters<typeof puppeteer.launch>[0]> {
+  const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+
+  if (isServerless) {
+    const chromium = (await import('@sparticuz/chromium')).default;
+    return {
+      executablePath: await chromium.executablePath(),
+      args: chromium.args,
+      headless: true,
+      defaultViewport: chromium.defaultViewport,
+    };
+  }
+
+  return {
+    executablePath: getChromePath(),
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  };
 }
 
 // Convert number to Arabic words
@@ -131,6 +161,8 @@ interface ReportData {
   cost_allowed_floors: number | null;
   cost_current_floors: number | null;
   cost_repairable_depreciation: number | null;
+  cost_garage_value: number | null;
+  cost_garden_value: number | null;
   cost_total: number | null;
   // Sales comparison
   sales_subject_building_area: number | null;
@@ -184,8 +216,36 @@ interface ReportData {
   appraiser?: {
     full_name: string;
     license_number: string;
+    signature_url?: string | null;
+    stamp_url?: string | null;
   };
 }
+
+// Report type page configurations
+type ReportKind = 'brief' | 'narrative_limited' | 'narrative_full';
+
+interface PageConfig {
+  pages: number[];
+  description: string;
+}
+
+const REPORT_TYPE_PAGES: Record<ReportKind, PageConfig> = {
+  // Brief report: Cover + Reconciliation + Certification (essential pages only)
+  brief: {
+    pages: [1, 10, 12],
+    description: 'مختصر - Summary report with key valuation results',
+  },
+  // Narrative Limited: Core pages without full detail
+  narrative_limited: {
+    pages: [1, 2, 5, 7, 9, 10, 11, 12],
+    description: 'سردي محدود - Limited narrative with essential analysis',
+  },
+  // Narrative Full: Complete 12-page report
+  narrative_full: {
+    pages: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    description: 'سردي متكامل - Full comprehensive appraisal report',
+  },
+};
 
 // Clean black & white color scheme for formal appraisal documents
 const COLORS = {
@@ -216,12 +276,30 @@ const sharedStyles = `
   .page {
     width: 190mm;
     min-height: 277mm;
+    max-height: 277mm;
     padding: 5mm;
     page-break-after: always;
+    page-break-inside: avoid;
     position: relative;
     border: 1px solid ${COLORS.lightBg};
+    overflow: hidden;
   }
   .page:last-child { page-break-after: avoid; }
+
+  /* Prevent content overflow in tables and text blocks */
+  .page table {
+    table-layout: fixed;
+    width: 100%;
+  }
+  .page td, .page th {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-wrap: break-word;
+  }
+  .page p {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
   /* Page Header - Clean black & white */
   .page-header {
@@ -426,9 +504,51 @@ const sharedStyles = `
     padding: 3mm;
     margin: 2mm 0;
   }
+
+  /* Signature & Stamp in Footer */
+  .footer-signature-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1mm;
+    min-width: 35mm;
+  }
+  .footer-signature-container img {
+    max-height: 12mm;
+    max-width: 35mm;
+    object-fit: contain;
+  }
 `;
 
-function generatePage1(report: ReportData): string {
+/**
+ * Generate footer with stamp, page number, and signature
+ * Uses actual uploaded images when available, falls back to text
+ */
+function generateFooter(report: ReportData, pageNumber: number): string {
+  const stampContent = report.appraiser?.stamp_url
+    ? `<img src="${report.appraiser.stamp_url}" alt="ختم">`
+    : `<div style="font-size: 8pt; color: #999;">ختم</div>`;
+
+  const signatureContent = report.appraiser?.signature_url
+    ? `<img src="${report.appraiser.signature_url}" alt="توقيع">`
+    : `<div style="font-size: 8pt; color: #999;">توقيع</div>`;
+
+  return `
+    <div class="footer">
+      <div class="footer-signature-container">
+        ${stampContent}
+        <div class="footer-label">ختم خبير التقييم</div>
+      </div>
+      <div class="page-number">${pageNumber}</div>
+      <div class="footer-signature-container">
+        ${signatureContent}
+        <div class="footer-label">توقيع خبير التقييم</div>
+      </div>
+    </div>
+  `;
+}
+
+function generatePage1(report: ReportData, pageNumber: number = 1): string {
   const propertyTypes: Record<string, string> = {
     apartment: 'شقه',
     villa: 'فيلا',
@@ -451,8 +571,6 @@ function generatePage1(report: ReportData): string {
     vacant: 'خالية',
     rented: 'مستأجر',
   };
-
-  const facadePhoto = report.photos.find(p => p.category === 'facade') || report.photos[0];
 
   return `
     <div class="page">
@@ -570,31 +688,14 @@ function generatePage1(report: ReportData): string {
         </tr>
       </table>
 
-      <table>
-        <tr>
-          <td class="bold center" colspan="2">الواجهة الامامية للعقار</td>
-        </tr>
-        <tr>
-          <td colspan="2" class="center" style="height: 70mm;">
-            ${facadePhoto ? `<img src="${facadePhoto.storage_path}" style="max-height: 65mm; max-width: 100%;">` : '<div style="color: #999;">لا توجد صورة</div>'}
-          </td>
-        </tr>
-      </table>
-
-      <div class="footer">
-        <div class="footer-section">
-          <div class="footer-label">ختم خبير التقييم</div>
-        </div>
-        <div class="page-number">1</div>
-        <div class="footer-section">
-          <div class="footer-label">توقيع خبير التقييم</div>
-        </div>
-      </div>
+      ${generateFooter(report, pageNumber)}
     </div>
   `;
 }
 
-function generatePage2(report: ReportData): string {
+function generatePage2(report: ReportData, pageNumber: number = 2): string {
+  // Images start on page 2 to keep the dense cover (page 1) from overflowing.
+  const facadePhoto = report.photos.find(p => p.category === 'facade') || report.photos[0];
   const locationPhoto = report.photos.find(p => p.category === 'location_map');
   const streetPhoto = report.photos.find(p => p.category === 'street_view');
 
@@ -604,36 +705,35 @@ function generatePage2(report: ReportData): string {
 
       <table>
         <tr>
-          <td class="bold center" colspan="2">التصوير الجوى للموقع</td>
+          <td class="bold center" colspan="2">الواجهة الامامية للعقار</td>
         </tr>
         <tr>
-          <td colspan="2" class="center" style="height: 100mm;">
-            ${locationPhoto ? `<img src="${locationPhoto.storage_path}" style="max-height: 95mm; max-width: 100%;">` : '<div style="color: #999; padding: 40mm;">صورة جوية للموقع</div>'}
-          </td>
-        </tr>
-        <tr>
-          <td colspan="2" class="center" style="height: 100mm;">
-            ${streetPhoto ? `<img src="${streetPhoto.storage_path}" style="max-height: 95mm; max-width: 100%;">` : '<div style="color: #999; padding: 40mm;">صورة للموقع من الشارع</div>'}
+          <td colspan="2" class="center" style="height: 80mm;">
+            ${facadePhoto ? `<img src="${facadePhoto.storage_path}" style="max-height: 75mm; max-width: 100%; object-fit: contain;">` : '<div style="color: #999;">لا توجد صورة</div>'}
           </td>
         </tr>
       </table>
 
-      <div class="footer">
-        <div class="footer-section">
-          <div class="footer-label">ختم خبير التقييم</div>
-        </div>
-        <div class="page-number">2</div>
-        <div class="footer-section">
-          <div class="footer-label">توقيع خبير التقييم</div>
-        </div>
-      </div>
+      <table style="margin-top: 4mm;">
+        <tr>
+          <td class="bold center" colspan="2">التصوير الجوى للموقع</td>
+        </tr>
+        <tr>
+          <td colspan="2" class="center" style="height: 90mm;">
+            ${locationPhoto ? `<img src="${locationPhoto.storage_path}" style="max-height: 85mm; max-width: 100%; object-fit: contain;">` : '<div style="color: #999; padding: 30mm;">صورة جوية للموقع</div>'}
+          </td>
+        </tr>
+      </table>
+
+      ${generateFooter(report, pageNumber)}
     </div>
   `;
 }
 
-function generatePage3_4(report: ReportData): string {
+function generatePage3_4(report: ReportData, startPageNumber: number = 3): string {
   const interiorPhotos = report.photos.filter(p =>
-    ['living_room', 'bedroom', 'bathroom', 'kitchen', 'balcony', 'entrance'].includes(p.category)
+    ['living_room', 'bedroom', 'bathroom', 'kitchen', 'balcony', 'entrance',
+     'garden', 'pool', 'garage', 'roof', 'street_view'].includes(p.category)
   );
 
   const categoryLabels: Record<string, string> = {
@@ -674,25 +774,16 @@ function generatePage3_4(report: ReportData): string {
             <img src="${photo.storage_path}" alt="${photo.category}">
           </div>
         `).join('')}
-        ${photos.length < 4 ? Array(4 - photos.length).fill('<div class="photo-cell"><div style="height: 80mm; display: flex; align-items: center; justify-content: center; color: #999;">لا توجد صورة</div></div>').join('') : ''}
       </div>
 
-      <div class="footer">
-        <div class="footer-section">
-          <div class="footer-label">ختم خبير التقييم</div>
-        </div>
-        <div class="page-number">${pageNum}</div>
-        <div class="footer-section">
-          <div class="footer-label">توقيع خبير التقييم</div>
-        </div>
-      </div>
+      ${generateFooter(report, pageNum)}
     </div>
   `;
 
-  return generatePhotoPage(page3Photos, 3) + generatePhotoPage(page4Photos, 4);
+  return generatePhotoPage(page3Photos, startPageNumber) + generatePhotoPage(page4Photos, startPageNumber + 1);
 }
 
-function generatePage5(report: ReportData): string {
+function generatePage5(report: ReportData, pageNumber: number = 5): string {
   const finishingLabels: Record<string, string> = {
     luxury: 'تشطيب فاخر',
     super_lux: 'سوبر لوكس',
@@ -819,20 +910,34 @@ function generatePage5(report: ReportData): string {
         </tr>
       </table>
 
-      <div class="footer">
-        <div class="footer-section">
-          <div class="footer-label">ختم خبير التقييم</div>
-        </div>
-        <div class="page-number">5</div>
-        <div class="footer-section">
-          <div class="footer-label">توقيع خبير التقييم</div>
-        </div>
-      </div>
+      ${generateFooter(report, pageNumber)}
     </div>
   `;
 }
 
-function generatePage6(report: ReportData): string {
+function generatePage6(report: ReportData, pageNumber: number = 6): string {
+  // Helper to generate checkbox based on condition
+  const checkbox = (checked: boolean) => `<span class="checkbox${checked ? ' checked' : ''}"></span>`;
+
+  // Determine property usage type from property_type
+  const propertyType = report.property.property_type;
+  const isResidential = ['apartment', 'villa', 'duplex', 'compound_unit', 'roof'].includes(propertyType);
+  const isCommercial = ['commercial_shop'].includes(propertyType);
+  const isOffice = ['office', 'building'].includes(propertyType);
+
+  // Tenancy determines financing/ownership
+  const isOwnerOccupied = report.tenancy === 'owner_occupied';
+  const isRented = report.tenancy === 'rented';
+
+  // Has pool from report data
+  const hasPool = report.has_pool;
+
+  // Has garage - check if there's garage value in cost approach
+  const hasGarage = report.cost_garage_value ? true : false;
+
+  // Has garden - check if there's garden value in cost approach
+  const hasGarden = report.cost_garden_value ? true : false;
+
   return `
     <div class="page">
       <div class="section-header">تقرير تقييم مقدم إلى</div>
@@ -843,45 +948,45 @@ function generatePage6(report: ReportData): string {
         </tr>
         <tr>
           <td class="bold">الموقع</td>
-          <td><span class="checkbox checked"></span> على شارع رئيسى</td>
-          <td><span class="checkbox"></span> على شارع فرعى</td>
-          <td colspan="3"><span class="checkbox"></span> على شارع جانبى</td>
+          <td>${checkbox(true)} على شارع رئيسى</td>
+          <td>${checkbox(false)} على شارع فرعى</td>
+          <td colspan="3">${checkbox(false)} على شارع جانبى</td>
         </tr>
         <tr>
           <td class="bold">حجم الانشاءات</td>
-          <td><span class="checkbox"></span> اكثر من 75%</td>
-          <td><span class="checkbox checked"></span> من25% حتى 75%</td>
-          <td colspan="3"><span class="checkbox"></span> اقل من 25%</td>
+          <td>${checkbox(false)} اكثر من 75%</td>
+          <td>${checkbox(true)} من25% حتى 75%</td>
+          <td colspan="3">${checkbox(false)} اقل من 25%</td>
         </tr>
         <tr>
           <td class="bold">مصادر التمويل</td>
-          <td><span class="checkbox checked"></span> تمليك</td>
-          <td><span class="checkbox"></span> ايجار سكنى</td>
-          <td colspan="3"><span class="checkbox"></span> ايجار تجارى وإدارى</td>
+          <td>${checkbox(isOwnerOccupied)} تمليك</td>
+          <td>${checkbox(isRented && isResidential)} ايجار سكنى</td>
+          <td colspan="3">${checkbox(isRented && (isCommercial || isOffice))} ايجار تجارى وإدارى</td>
         </tr>
         <tr>
           <td class="bold">اسعار العقارات</td>
-          <td><span class="checkbox"></span> فى زيادة</td>
-          <td><span class="checkbox checked"></span> ثابته</td>
-          <td colspan="3"><span class="checkbox"></span> فى انخفاض</td>
+          <td>${checkbox(false)} فى زيادة</td>
+          <td>${checkbox(true)} ثابته</td>
+          <td colspan="3">${checkbox(false)} فى انخفاض</td>
         </tr>
         <tr>
           <td class="bold">العرض والطلب</td>
-          <td><span class="checkbox"></span> المعروض كثير</td>
-          <td><span class="checkbox checked"></span> متوازن</td>
-          <td colspan="3"><span class="checkbox"></span> المعروض قليل</td>
+          <td>${checkbox(false)} المعروض كثير</td>
+          <td>${checkbox(true)} متوازن</td>
+          <td colspan="3">${checkbox(false)} المعروض قليل</td>
         </tr>
         <tr>
           <td class="bold">زمن البيع</td>
-          <td><span class="checkbox"></span> اقل من 3 شهور</td>
-          <td><span class="checkbox checked"></span> من 3 الى 6 شهور</td>
-          <td colspan="3"><span class="checkbox"></span> اكثر من 6 شهور</td>
+          <td>${checkbox(false)} اقل من 3 شهور</td>
+          <td>${checkbox(true)} من 3 الى 6 شهور</td>
+          <td colspan="3">${checkbox(false)} اكثر من 6 شهور</td>
         </tr>
         <tr>
           <td class="bold">المنطقة</td>
-          <td><span class="checkbox checked"></span> هادئة</td>
-          <td><span class="checkbox"></span> عادية</td>
-          <td colspan="3"><span class="checkbox"></span> مزدحمة</td>
+          <td>${checkbox(true)} هادئة</td>
+          <td>${checkbox(false)} عادية</td>
+          <td colspan="3">${checkbox(false)} مزدحمة</td>
         </tr>
       </table>
 
@@ -891,35 +996,35 @@ function generatePage6(report: ReportData): string {
         </tr>
         <tr>
           <td class="bold">المنطقة</td>
-          <td><span class="checkbox checked"></span> مياه</td>
-          <td><span class="checkbox checked"></span> كهرباء</td>
-          <td><span class="checkbox checked"></span> صرف صحى</td>
-          <td><span class="checkbox checked"></span> تليفونات</td>
-          <td><span class="checkbox checked"></span> غاز</td>
+          <td>${checkbox(true)} مياه</td>
+          <td>${checkbox(true)} كهرباء</td>
+          <td>${checkbox(true)} صرف صحى</td>
+          <td>${checkbox(true)} تليفونات</td>
+          <td>${checkbox(true)} غاز</td>
         </tr>
         <tr>
           <td></td>
-          <td><span class="checkbox checked"></span> مدارس</td>
-          <td><span class="checkbox checked"></span> مول تجارى</td>
-          <td><span class="checkbox checked"></span> مستشفيات</td>
-          <td><span class="checkbox checked"></span> مناطق ترفيه</td>
+          <td>${checkbox(true)} مدارس</td>
+          <td>${checkbox(true)} مول تجارى</td>
+          <td>${checkbox(true)} مستشفيات</td>
+          <td>${checkbox(true)} مناطق ترفيه</td>
           <td></td>
         </tr>
         <tr>
           <td class="bold">العقار</td>
-          <td><span class="checkbox checked"></span> مياه</td>
-          <td><span class="checkbox checked"></span> كهرباء</td>
-          <td><span class="checkbox checked"></span> صرف صحى</td>
-          <td><span class="checkbox checked"></span> تليفونات</td>
-          <td><span class="checkbox checked"></span> غاز</td>
+          <td>${checkbox(true)} مياه</td>
+          <td>${checkbox(true)} كهرباء</td>
+          <td>${checkbox(true)} صرف صحى</td>
+          <td>${checkbox(true)} تليفونات</td>
+          <td>${checkbox(true)} غاز</td>
         </tr>
         <tr>
           <td></td>
-          <td><span class="checkbox"></span> جراج</td>
-          <td><span class="checkbox"></span> تجارى</td>
-          <td><span class="checkbox"></span> إدارى</td>
-          <td><span class="checkbox checked"></span> سكنى</td>
-          <td><span class="checkbox"></span> مصعد</td>
+          <td>${checkbox(hasGarage)} جراج</td>
+          <td>${checkbox(isCommercial)} تجارى</td>
+          <td>${checkbox(isOffice)} إدارى</td>
+          <td>${checkbox(isResidential)} سكنى</td>
+          <td>${checkbox(hasPool)} حمام سباحة</td>
         </tr>
       </table>
 
@@ -928,7 +1033,7 @@ function generatePage6(report: ReportData): string {
           <td class="bold">حقوق ومستندات الملكية :-</td>
         </tr>
         <tr>
-          <td>عقد الشراء من المالك بموجب عقد البيع الابتدائى. التملك لملكية الوحدة السكنية المطلوب تقييمها.</td>
+          <td>عقد الشراء من المالك بموجب عقد البيع الابتدائى. التملك لملكية ${isResidential ? 'الوحدة السكنية' : isCommercial ? 'الوحدة التجارية' : 'العقار'} المطلوب تقييمها.</td>
         </tr>
         <tr>
           <td class="bold">التراخيص :-</td>
@@ -938,20 +1043,12 @@ function generatePage6(report: ReportData): string {
         </tr>
       </table>
 
-      <div class="footer">
-        <div class="footer-section">
-          <div class="footer-label">ختم خبير التقييم</div>
-        </div>
-        <div class="page-number">6</div>
-        <div class="footer-section">
-          <div class="footer-label">توقيع خبير التقييم</div>
-        </div>
-      </div>
+      ${generateFooter(report, pageNumber)}
     </div>
   `;
 }
 
-function generatePage7(report: ReportData): string {
+function generatePage7(report: ReportData, pageNumber: number = 7): string {
   return `
     <div class="page">
       <div class="section-header">تقرير تقييم مقدم إلى</div>
@@ -1031,20 +1128,12 @@ function generatePage7(report: ReportData): string {
         </tr>
       </table>
 
-      <div class="footer">
-        <div class="footer-section">
-          <div class="footer-label">ختم خبير التقييم</div>
-        </div>
-        <div class="page-number">7</div>
-        <div class="footer-section">
-          <div class="footer-label">توقيع خبير التقييم</div>
-        </div>
-      </div>
+      ${generateFooter(report, pageNumber)}
     </div>
   `;
 }
 
-function generatePage8(report: ReportData): string {
+function generatePage8(report: ReportData, pageNumber: number = 8): string {
   const landValue = report.land_value || 0;
   const constructionCost = (report.unit_net_area || 0) * (report.cost_construction_per_sqm || 0);
   const constructionWithProfit = constructionCost * 1.3;
@@ -1151,20 +1240,12 @@ function generatePage8(report: ReportData): string {
         </tr>
       </table>
 
-      <div class="footer">
-        <div class="footer-section">
-          <div class="footer-label">ختم خبير التقييم</div>
-        </div>
-        <div class="page-number">8</div>
-        <div class="footer-section">
-          <div class="footer-label">توقيع خبير التقييم</div>
-        </div>
-      </div>
+      ${generateFooter(report, pageNumber)}
     </div>
   `;
 }
 
-function generatePage9(report: ReportData): string {
+function generatePage9(report: ReportData, pageNumber: number = 9): string {
   const comps = report.comparables.slice(0, 3);
 
   const saleTimingLabels: Record<string, string> = {
@@ -1285,20 +1366,12 @@ function generatePage9(report: ReportData): string {
         </tr>
       </table>
 
-      <div class="footer">
-        <div class="footer-section">
-          <div class="footer-label">ختم خبير التقييم</div>
-        </div>
-        <div class="page-number">9</div>
-        <div class="footer-section">
-          <div class="footer-label">توقيع خبير التقييم</div>
-        </div>
-      </div>
+      ${generateFooter(report, pageNumber)}
     </div>
   `;
 }
 
-function generatePage10(report: ReportData): string {
+function generatePage10(report: ReportData, pageNumber: number = 10): string {
   const methodLabels: Record<string, string> = {
     cost: 'طريقة التكلفة',
     sales_comparison: 'طريقة البيوع السابقة',
@@ -1386,20 +1459,12 @@ function generatePage10(report: ReportData): string {
         ` : ''}
       </table>
 
-      <div class="footer">
-        <div class="footer-section">
-          <div class="footer-label">ختم خبير التقييم</div>
-        </div>
-        <div class="page-number">10</div>
-        <div class="footer-section">
-          <div class="footer-label">توقيع خبير التقييم</div>
-        </div>
-      </div>
+      ${generateFooter(report, pageNumber)}
     </div>
   `;
 }
 
-function generatePage11(report: ReportData): string {
+function generatePage11(report: ReportData, pageNumber: number = 11): string {
   return `
     <div class="page">
       <div class="section-header">تقرير تقييم مقدم إلى</div>
@@ -1443,20 +1508,12 @@ function generatePage11(report: ReportData): string {
         </tr>
       </table>
 
-      <div class="footer">
-        <div class="footer-section">
-          <div class="footer-label">ختم خبير التقييم</div>
-        </div>
-        <div class="page-number">11</div>
-        <div class="footer-section">
-          <div class="footer-label">توقيع خبير التقييم</div>
-        </div>
-      </div>
+      ${generateFooter(report, pageNumber)}
     </div>
   `;
 }
 
-function generatePage12(report: ReportData): string {
+function generatePage12(report: ReportData, pageNumber: number = 12): string {
   return `
     <div class="page">
       <div class="section-header">تقرير تقييم مقدم إلى</div>
@@ -1489,27 +1546,84 @@ function generatePage12(report: ReportData): string {
 
             <p style="margin-bottom: 3mm;">10- إنني قمت شخصيا بإعداد كل التوصيات و النتائج عن العقار. و إننى حيثما اعتمدت على خبير فنى آخر فى أجزاء هامة لأداء هذا التقييم أوضحت اسم هذا الخبير و أوضحت طبيعة الجزء الذى قام بإعداده.</p>
 
-            <p style="margin-top: 8mm;"><span class="bold">الاسم:</span> ${report.appraiser?.full_name || '-'}</p>
-            <p><span class="bold">رقم القيد:</span> ${report.appraiser?.license_number || '-'}</p>
-            <p style="margin-top: 5mm;"><span class="bold">توقيع</span></p>
+            <div style="display: flex; justify-content: space-between; margin-top: 8mm;">
+              <div>
+                <p><span class="bold">الاسم:</span> ${report.appraiser?.full_name || '-'}</p>
+                <p><span class="bold">رقم القيد:</span> ${report.appraiser?.license_number || '-'}</p>
+                <p><span class="bold">التاريخ:</span> ${formatDateArabic(report.appraisal_date)}</p>
+              </div>
+              <div style="text-align: center;">
+                <p class="bold">التوقيع</p>
+                ${report.appraiser?.signature_url
+                  ? `<img src="${report.appraiser.signature_url}" style="max-height: 20mm; max-width: 50mm; margin-top: 2mm;" alt="توقيع">`
+                  : `<div style="margin-top: 6mm;">
+                       <div style="font-size: 18px; font-style: italic; border-bottom: 1px solid #000; padding-bottom: 1mm; min-width: 50mm; white-space: nowrap;">${report.appraiser?.full_name || '-'}</div>
+                       <div style="font-size: 10px; margin-top: 1mm;">${formatDateArabic(report.appraisal_date)}</div>
+                     </div>`
+                }
+              </div>
+              <div style="text-align: center;">
+                <p class="bold">الختم</p>
+                ${report.appraiser?.stamp_url
+                  ? `<img src="${report.appraiser.stamp_url}" style="max-height: 25mm; max-width: 35mm; margin-top: 2mm;" alt="ختم">`
+                  : '<div style="width: 35mm; height: 25mm; border: 1px dashed #999; margin-top: 2mm;"></div>'
+                }
+              </div>
+            </div>
           </td>
         </tr>
       </table>
 
-      <div class="footer">
-        <div class="footer-section">
-          <div class="footer-label">ختم خبير التقييم</div>
-        </div>
-        <div class="page-number">12</div>
-        <div class="footer-section">
-          <div class="footer-label">توقيع خبير التقييم</div>
-        </div>
-      </div>
+      ${generateFooter(report, pageNumber)}
     </div>
   `;
 }
 
 function generateReportHTML(report: ReportData): string {
+  // Get the report type configuration, default to narrative_full
+  const reportKind = (report.report_kind as ReportKind) || 'narrative_full';
+  const pageConfig = REPORT_TYPE_PAGES[reportKind] || REPORT_TYPE_PAGES.narrative_full;
+  const includedPages = new Set(pageConfig.pages);
+
+  // Page generators mapped by their original page number
+  // Each generator receives the report and the actual page number to display
+  const pageGenerators: Record<number, (report: ReportData, pageNum: number) => string> = {
+    1: generatePage1,
+    2: generatePage2,
+    // Pages 3-4 are generated together by generatePage3_4
+    5: generatePage5,
+    6: generatePage6,
+    7: generatePage7,
+    8: generatePage8,
+    9: generatePage9,
+    10: generatePage10,
+    11: generatePage11,
+    12: generatePage12,
+  };
+
+  // Build the pages HTML with correct page numbering
+  const pagesHTML: string[] = [];
+  let currentPageNumber = 1;
+
+  for (const originalPageNum of pageConfig.pages) {
+    if (originalPageNum === 3 || originalPageNum === 4) {
+      // Handle pages 3-4 together (interior photos)
+      if (includedPages.has(3) || includedPages.has(4)) {
+        // Only add once when we encounter 3 or 4
+        if (originalPageNum === 3) {
+          pagesHTML.push(generatePage3_4(report, currentPageNumber));
+          currentPageNumber += 2; // These are 2 pages
+        }
+      }
+    } else {
+      const generator = pageGenerators[originalPageNum];
+      if (generator) {
+        pagesHTML.push(generator(report, currentPageNumber));
+        currentPageNumber++;
+      }
+    }
+  }
+
   return `
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -1521,28 +1635,14 @@ function generateReportHTML(report: ReportData): string {
   <style>${sharedStyles}</style>
 </head>
 <body>
-  ${generatePage1(report)}
-  ${generatePage2(report)}
-  ${generatePage3_4(report)}
-  ${generatePage5(report)}
-  ${generatePage6(report)}
-  ${generatePage7(report)}
-  ${generatePage8(report)}
-  ${generatePage9(report)}
-  ${generatePage10(report)}
-  ${generatePage11(report)}
-  ${generatePage12(report)}
+  ${pagesHTML.join('\n')}
 </body>
 </html>
 `;
 }
 
 export async function generatePDF(report: ReportData): Promise<Buffer> {
-  const browser = await puppeteer.launch({
-    executablePath: getChromePath(),
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
+  const browser = await puppeteer.launch(await getLaunchOptions());
 
   try {
     const page = await browser.newPage();

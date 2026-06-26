@@ -65,24 +65,27 @@ export const LoginPage = () => {
     if (role === 'admin') {
       navigate('/admin/verifications');
     } else if (role === 'appraiser') {
-      // Check onboarding status
-      const token = (await (await import('@/src/lib/supabase/browser')).getSupabaseBrowserClient().auth.getSession()).data.session?.access_token;
-      if (token) {
-        const res = await fetch('/api/onboarding/status', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
+      // Route by onboarding status. If the status check fails for any reason,
+      // fall back to /onboarding so the user is never stranded on the login page.
+      try {
+        const token = (await (await import('@/src/lib/supabase/browser')).getSupabaseBrowserClient().auth.getSession()).data.session?.access_token;
+        const res = token
+          ? await fetch('/api/onboarding/status', { headers: { Authorization: `Bearer ${token}` } })
+          : null;
+        if (res?.ok) {
           const status = await res.json();
-          if (!status.hasProfile && status.hasDraft) {
-            navigate('/onboarding');
-          } else if (status.hasProfile && status.profileStatus === 'pending') {
+          if (status.hasProfile && status.profileStatus === 'pending') {
             navigate('/onboarding/under-review');
           } else if (status.hasProfile && status.profileStatus === 'verified') {
             navigate('/dashboard');
           } else {
             navigate('/onboarding');
           }
+        } else {
+          navigate('/onboarding');
         }
+      } catch {
+        navigate('/onboarding');
       }
     } else {
       navigate('/');
@@ -280,7 +283,7 @@ export const SignupPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { signUp, signInWithGoogle, profile, loading: authLoading } = useAuth();
+  const { signUp, verifyOtp, resendOtp, signInWithGoogle, profile, loading: authLoading } = useAuth();
 
   const inviteToken = searchParams.get('invite');
 
@@ -294,7 +297,10 @@ export const SignupPage = () => {
   const [isInvite, setIsInvite] = React.useState(false);
   const [inviteEmail, setInviteEmail] = React.useState('');
   const [showComingSoon, setShowComingSoon] = React.useState(false);
-  const [showEmailConfirmation, setShowEmailConfirmation] = React.useState(false);
+  const [showOtp, setShowOtp] = React.useState(false);
+  const [otpCode, setOtpCode] = React.useState('');
+  const [verifying, setVerifying] = React.useState(false);
+  const [resent, setResent] = React.useState(false);
 
   // Check invite token
   React.useEffect(() => {
@@ -351,6 +357,15 @@ export const SignupPage = () => {
       return;
     }
 
+    // Supabase returns a user with an empty identities array when the email is
+    // already registered (enumeration protection) — no new account is created.
+    // Guide the user to log in instead of failing later in create-profile.
+    if (result.user && Array.isArray(result.user.identities) && result.user.identities.length === 0) {
+      setError('An account with this email already exists. Please log in instead.');
+      setLoading(false);
+      return;
+    }
+
     // Create profile via API (handles invite tokens and onboarding draft)
     if (result.user) {
       try {
@@ -378,9 +393,47 @@ export const SignupPage = () => {
       }
     }
 
-    // Show email confirmation message
-    setShowEmailConfirmation(true);
+    // If email confirmation is disabled, signUp already returned a session, so
+    // the user is logged in — skip the code screen and let the redirect effect
+    // route them into onboarding. Otherwise show the 6-digit code entry screen.
+    if (result.session) {
+      setLoading(false);
+      return;
+    }
+
+    setShowOtp(true);
     setLoading(false);
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (otpCode.length !== 6) return;
+
+    setVerifying(true);
+    setError(null);
+
+    const { error: otpError } = await verifyOtp(email, otpCode);
+
+    if (otpError) {
+      setError(otpError.message || 'Invalid or expired code. Please try again.');
+      setVerifying(false);
+      return;
+    }
+
+    // Session is now established; AuthContext loads the profile and the
+    // redirect effect routes appraisers into onboarding.
+    setVerifying(false);
+  };
+
+  const handleResendOtp = async () => {
+    setError(null);
+    setResent(false);
+    const { error: resendError } = await resendOtp(email);
+    if (resendError) {
+      setError(resendError.message || 'Failed to resend code.');
+      return;
+    }
+    setResent(true);
   };
 
   const handleGoogleSignIn = async () => {
@@ -393,27 +446,61 @@ export const SignupPage = () => {
     }
   };
 
-  if (showEmailConfirmation) {
+  if (showOtp) {
     return (
       <div className="min-h-screen pt-32 pb-24 px-5 flex flex-col items-center justify-center">
         <div className="w-full max-w-[420px] text-center">
           <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-8">
             <Check className="h-8 w-8 text-emerald-600" />
           </div>
-          <h1 className="text-h2 text-ink-600 mb-4">{t('auth.emailConfirmation.title')}</h1>
-          <p className="text-body-m text-ink-400 mb-4">
-            {t('auth.emailConfirmation.message', { email })}
+          <h1 className="text-h2 text-ink-600 mb-4">Enter verification code</h1>
+          <p className="text-body-m text-ink-400 mb-8">
+            We sent a 6-digit code to <strong>{email}</strong>. Enter it below to verify your account.
           </p>
-          <p className="text-body-s text-ink-300 mb-8">
-            {t('auth.emailConfirmation.spam')}
+
+          <form onSubmit={handleVerifyOtp} className="space-y-6">
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={otpCode}
+              onChange={(e) => {
+                setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6));
+                setError(null);
+              }}
+              placeholder="123456"
+              autoFocus
+              className="w-full text-center text-h2 tracking-[0.4em] py-3 border-b border-ink-200 bg-transparent focus:border-emerald-500 outline-none"
+            />
+
+            {error && (
+              <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-sm text-[13px] text-red-700 text-left">
+                <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {resent && !error && (
+              <p className="text-body-s text-emerald-600">A new code has been sent.</p>
+            )}
+
+            <Button
+              type="submit"
+              variant="primary"
+              className="w-full"
+              disabled={otpCode.length !== 6 || verifying}
+            >
+              {verifying ? 'Verifying...' : 'Verify & continue'}
+            </Button>
+          </form>
+
+          <p className="text-body-s text-ink-300 mt-6">
+            Didn't get it?{' '}
+            <button onClick={handleResendOtp} className="text-emerald-600 hover:underline">
+              Resend code
+            </button>
           </p>
-          <div className="flex flex-col gap-3">
-            <Link to="/login">
-              <Button variant="primary" className="w-full">
-                {t('common.login')}
-              </Button>
-            </Link>
-          </div>
         </div>
       </div>
     );

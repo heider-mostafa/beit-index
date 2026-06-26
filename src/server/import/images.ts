@@ -471,3 +471,147 @@ export async function extractAndClassifyImages(
 
   return images;
 }
+
+// ============================================================================
+// PHOTO SELECTION & PDF CATEGORY MAPPING (single source of truth)
+//
+// Both the auto-approve path (inngest/functions.ts) and the manual-approve
+// path (server/api.ts) MUST go through selectDisplayablePhotos so that what
+// gets uploaded to storage, inserted into report_photos, and rendered in the
+// PDF are always the same set. Keep this logic here, not duplicated.
+// ============================================================================
+
+/**
+ * report_photos.category values the generated PDF actually renders. Photos that
+ * map outside this set get category 'other': they are still extracted, stored,
+ * and shown in review (so a human can relabel them) — they just have no
+ * dedicated slot in the auto-generated PDF until categorised.
+ */
+export const RENDERABLE_PHOTO_CATEGORIES = [
+  'facade',
+  'location_map',
+  'street_view',
+  'living_room',
+  'bedroom',
+  'bathroom',
+  'kitchen',
+  'balcony',
+  'entrance',
+  'garden',
+  'pool',
+  'garage',
+  'roof',
+] as const;
+
+/**
+ * Objective junk gate (bytes). Real property photos in the sample appraisals are
+ * ≥18 KB; embedded UI artifacts (checkbox squares ~33px wide, bullet icons,
+ * spacers) are ≤0.5 KB. A 4 KB floor drops the artifacts with a >4x margin below
+ * the smallest real photo, WITHOUT relying on AI labels or confidence — so a real
+ * photo is never discarded just because the model was unsure how to label it.
+ */
+export const MIN_PHOTO_BYTES = 4096;
+
+/**
+ * Only exclude logos/signatures from report photos when the AI is confident
+ * about that label. They are genuine images but not property photos (the PDF
+ * feeds the stamp/signature from appraiser.stamp_url / signature_url separately).
+ * If the model is unsure, we keep the image rather than risk dropping a real one.
+ */
+export const LOGO_SIGNATURE_MIN_CONFIDENCE = 70;
+
+/** Interior categories cycled through when an interior photo has no roomType. */
+const INTERIOR_FALLBACK_CATEGORIES = [
+  'living_room',
+  'bedroom',
+  'bathroom',
+  'kitchen',
+  'entrance',
+  'balcony',
+] as const;
+
+/** Non-interior label → report_photos.category. 'other' means "do not render". */
+const LABEL_TO_CATEGORY: Record<ImageLabel, string> = {
+  exterior_photos: 'facade',
+  location_map: 'location_map',
+  aerial_view: 'street_view', // show aerial as street_view for better visibility
+  street_view: 'street_view',
+  interior_photos: 'other', // handled specially via roomType below
+  floor_plan: 'other',
+  site_sketch: 'other',
+  document_scan: 'other',
+  appraiser_signature: 'other',
+  company_logo: 'other',
+  unknown: 'other',
+};
+
+/**
+ * Build a stateful label→category mapper. Stateful because interior photos
+ * without a roomType are assigned by cycling through INTERIOR_FALLBACK_CATEGORIES,
+ * so create one mapper per report.
+ */
+export function createCategoryMapper(): (img: Pick<ClassifiedImage, 'label' | 'roomType'>) => string {
+  let interiorFallbackIndex = 0;
+  return (img) => {
+    if (img.label === 'interior_photos') {
+      if (img.roomType) return img.roomType;
+      const category =
+        INTERIOR_FALLBACK_CATEGORIES[interiorFallbackIndex % INTERIOR_FALLBACK_CATEGORIES.length];
+      interiorFallbackIndex++;
+      return category;
+    }
+    return LABEL_TO_CATEGORY[img.label] ?? 'other';
+  };
+}
+
+export interface DisplayablePhoto {
+  image: ClassifiedImage;
+  /** Final report_photos.category — always one of RENDERABLE_PHOTO_CATEGORIES. */
+  category: string;
+  caption: string | null;
+}
+
+/**
+ * Reduce extracted images to the report photos we keep, assigning each a
+ * category. The goal is COMPLETENESS: every real photo is kept even when the
+ * label is uncertain (those become category 'other' for human review). Only two
+ * things are dropped, both on objective grounds:
+ *   1. Images below MIN_PHOTO_BYTES — embedded UI artifacts (checkboxes, icons,
+ *      spacers), never real photographs.
+ *   2. Images the AI confidently identifies as a logo or signature — real
+ *      images, but not property photos (handled by separate PDF slots).
+ *
+ * Crucially, low AI confidence and an 'unknown' label do NOT cause a drop: an
+ * uncertain real photo is kept and surfaced in review rather than discarded.
+ */
+export function selectDisplayablePhotos(
+  images: Array<ClassifiedImage | ExtractedImage>
+): DisplayablePhoto[] {
+  const mapCategory = createCategoryMapper();
+  const photos: DisplayablePhoto[] = [];
+
+  for (const img of images) {
+    // 1. Objective junk gate — tiny embedded artifacts, independent of any label.
+    if (img.sizeBytes < MIN_PHOTO_BYTES) {
+      continue;
+    }
+
+    // 2. Confident logos/signatures are not property photos. Only drop when the
+    //    model is sure; if unsure, keep the image (it may be a real photo).
+    const confidence = (img as ClassifiedImage).confidence ?? 0;
+    const isLogoOrSig = img.label === 'company_logo' || img.label === 'appraiser_signature';
+    if (isLogoOrSig && confidence >= LOGO_SIGNATURE_MIN_CONFIDENCE) {
+      continue;
+    }
+
+    // 3. Keep everything else. Uncertain/unknown labels map to 'other' and are
+    //    preserved for human relabelling — never silently dropped.
+    photos.push({
+      image: img as ClassifiedImage,
+      category: mapCategory(img as ClassifiedImage),
+      caption: (img as ClassifiedImage).aiDescription ?? null,
+    });
+  }
+
+  return photos;
+}

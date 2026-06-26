@@ -69,7 +69,7 @@ const URGENCY_LABELS: Record<string, { en: string; ar: string }> = {
 export default function PaymentCheckout() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { session } = useAuth();
   const isRTL = i18n.language === 'ar';
 
@@ -101,14 +101,14 @@ export default function PaymentCheckout() {
               navigate(`/marketplace/jobs/${id}`);
               return;
             }
-            setError(isRTL ? 'لا يمكن الدفع لهذا الطلب' : 'Payment not available for this job');
+            setError(t('payment.paymentNotAvailable'));
           }
         } else {
-          setError(isRTL ? 'فشل في تحميل بيانات الطلب' : 'Failed to load job details');
+          setError(t('payment.errors.failedToLoad'));
         }
       } catch (err) {
         console.error('Failed to fetch job:', err);
-        setError(isRTL ? 'فشل في تحميل البيانات' : 'Failed to load data');
+        setError(t('payment.errors.failedToLoad'));
       } finally {
         setLoading(false);
       }
@@ -127,7 +127,7 @@ export default function PaymentCheckout() {
         }, 2000);
       } else if (event.data?.type === 'PAYMOB_PAYMENT_FAILED') {
         setPaymentStatus('failed');
-        setError(isRTL ? 'فشلت عملية الدفع' : 'Payment failed');
+        setError(t('payment.errors.paymentFailed'));
       }
     }
 
@@ -191,15 +191,13 @@ export default function PaymentCheckout() {
             <CheckCircle className="w-8 h-8 text-emerald-600" />
           </div>
           <h2 className="text-xl font-bold text-ink-900 mb-2">
-            {isRTL ? 'تم الدفع بنجاح!' : 'Payment Successful!'}
+            {t('payment.success')}
           </h2>
           <p className="text-ink-500 mb-4">
-            {isRTL
-              ? 'سيتم تعيين مقيم لطلبك قريباً.'
-              : 'An appraiser will be assigned to your request soon.'}
+            {t('payment.successMessage')}
           </p>
           <p className="text-sm text-ink-400">
-            {isRTL ? 'جارٍ التحويل...' : 'Redirecting...'}
+            {t('deliver.redirecting')}
           </p>
         </div>
       </div>
@@ -211,9 +209,9 @@ export default function PaymentCheckout() {
       <div className="min-h-screen bg-cream-50 pt-16 flex items-center justify-center">
         <div className="text-center">
           <XCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-          <p className="text-ink-500">{isRTL ? 'لم يتم العثور على الطلب' : 'Job not found'}</p>
+          <p className="text-ink-500">{t('payment.jobNotFound')}</p>
           <Link to="/marketplace/jobs" className="text-emerald-600 hover:underline mt-2 inline-block">
-            {isRTL ? 'العودة للطلبات' : 'Back to My Jobs'}
+            {t('payment.backToJobs')}
           </Link>
         </div>
       </div>
@@ -230,10 +228,10 @@ export default function PaymentCheckout() {
             className="text-sm text-ink-500 hover:text-ink-700 mb-2 inline-flex items-center gap-1"
           >
             <ArrowLeft className="w-4 h-4" />
-            {isRTL ? 'العودة للطلب' : 'Back to Job'}
+            {t('payment.backToJob')}
           </Link>
           <h1 className="text-2xl font-bold text-ink-900">
-            {isRTL ? 'إتمام الدفع' : 'Complete Payment'}
+            {t('payment.title')}
           </h1>
         </div>
       </header>
@@ -251,15 +249,13 @@ export default function PaymentCheckout() {
           <div className="md:col-span-2">
             <div className="bg-white rounded-xl shadow-sm p-6 sticky top-24">
               <h2 className="text-lg font-semibold text-ink-900 mb-4">
-                {isRTL ? 'ملخص الطلب' : 'Order Summary'}
+                {t('payment.orderSummary')}
               </h2>
 
               {/* Property Info */}
               <div className="border-b border-cream-100 pb-4 mb-4">
                 <p className="font-medium text-ink-900">
-                  {isRTL
-                    ? PROPERTY_TYPE_LABELS[job.property_type]?.ar
-                    : PROPERTY_TYPE_LABELS[job.property_type]?.en}
+                  {t(`propertyTypes.${job.property_type}`)}
                 </p>
                 <p className="text-sm text-ink-500 mt-1">
                   {job.governorates
@@ -275,19 +271,15 @@ export default function PaymentCheckout() {
               {/* Report Details */}
               <div className="border-b border-cream-100 pb-4 mb-4 space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-ink-500">{isRTL ? 'نوع التقرير' : 'Report Type'}</span>
+                  <span className="text-ink-500">{t('payment.reportType')}</span>
                   <span className="text-ink-700">
-                    {isRTL
-                      ? REPORT_KIND_LABELS[job.report_kind]?.ar
-                      : REPORT_KIND_LABELS[job.report_kind]?.en}
+                    {t(`marketplace.reportKinds.${job.report_kind}`)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-ink-500">{isRTL ? 'السرعة' : 'Delivery'}</span>
+                  <span className="text-ink-500">{t('payment.delivery')}</span>
                   <span className="text-ink-700">
-                    {isRTL
-                      ? URGENCY_LABELS[job.urgency]?.ar
-                      : URGENCY_LABELS[job.urgency]?.en}
+                    {t(`marketplace.urgency.${job.urgency}`)}
                   </span>
                 </div>
               </div>
@@ -295,12 +287,12 @@ export default function PaymentCheckout() {
               {/* Pricing Breakdown */}
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between text-sm">
-                  <span className="text-ink-500">{isRTL ? 'السعر الأساسي' : 'Base Price'}</span>
+                  <span className="text-ink-500">{t('payment.basePrice')}</span>
                   <span className="text-ink-700">{formatCurrency(job.base_price)}</span>
                 </div>
                 {job.urgency_fee > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-ink-500">{isRTL ? 'رسوم السرعة' : 'Urgency Fee'}</span>
+                    <span className="text-ink-500">{t('payment.urgencyFee')}</span>
                     <span className="text-ink-700">{formatCurrency(job.urgency_fee)}</span>
                   </div>
                 )}
@@ -310,25 +302,21 @@ export default function PaymentCheckout() {
               <div className="border-t border-cream-200 pt-4">
                 <div className="flex justify-between items-center">
                   <span className="font-semibold text-ink-900">
-                    {isRTL ? 'الإجمالي' : 'Total'}
+                    {t('payment.total')}
                   </span>
                   <span className="text-2xl font-bold text-emerald-600">
                     {formatCurrency(job.total_price)}
                   </span>
                 </div>
                 <p className="text-xs text-ink-400 mt-1">
-                  {isRTL ? 'شامل جميع الرسوم' : 'Including all fees'}
+                  {t('payment.includingFees')}
                 </p>
               </div>
 
               {/* Security Badge */}
               <div className="mt-6 flex items-center gap-2 text-xs text-ink-400">
                 <Shield className="w-4 h-4" />
-                <span>
-                  {isRTL
-                    ? 'دفع آمن عبر Paymob'
-                    : 'Secure payment via Paymob'}
-                </span>
+                <span>{t('payment.securePayment')}</span>
               </div>
             </div>
           </div>
@@ -342,29 +330,27 @@ export default function PaymentCheckout() {
                     <CreditCard className="w-8 h-8 text-emerald-600" />
                   </div>
                   <h2 className="text-xl font-semibold text-ink-900 mb-2">
-                    {isRTL ? 'جاهز للدفع' : 'Ready to Pay'}
+                    {t('payment.readyToPay')}
                   </h2>
                   <p className="text-ink-500">
-                    {isRTL
-                      ? 'اضغط على الزر أدناه لإتمام عملية الدفع بشكل آمن'
-                      : 'Click the button below to complete your secure payment'}
+                    {t('payment.readyToPayDesc')}
                   </p>
                 </div>
 
                 {/* Payment Methods Info */}
                 <div className="bg-cream-50 rounded-lg p-4 mb-6">
                   <p className="text-sm font-medium text-ink-700 mb-2">
-                    {isRTL ? 'طرق الدفع المتاحة' : 'Available Payment Methods'}
+                    {t('payment.availableMethods')}
                   </p>
                   <div className="flex flex-wrap gap-3">
                     <span className="px-3 py-1 bg-white rounded text-sm text-ink-600">
                       Visa / Mastercard
                     </span>
                     <span className="px-3 py-1 bg-white rounded text-sm text-ink-600">
-                      {isRTL ? 'المحافظ الإلكترونية' : 'Mobile Wallets'}
+                      {t('payment.mobileWallets')}
                     </span>
                     <span className="px-3 py-1 bg-white rounded text-sm text-ink-600">
-                      {isRTL ? 'فوري/أمان' : 'Fawry/Aman'}
+                      {t('payment.fawryAman')}
                     </span>
                   </div>
                 </div>
@@ -377,20 +363,18 @@ export default function PaymentCheckout() {
                   {initiatingPayment ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      {isRTL ? 'جارٍ التحميل...' : 'Loading...'}
+                      {t('payment.loading')}
                     </>
                   ) : (
                     <>
                       <CreditCard className="w-5 h-5" />
-                      {isRTL ? `ادفع ${formatCurrency(job.total_price)}` : `Pay ${formatCurrency(job.total_price)}`}
+                      {t('payment.payButton', { amount: formatCurrency(job.total_price) })}
                     </>
                   )}
                 </button>
 
                 <p className="text-center text-xs text-ink-400 mt-4">
-                  {isRTL
-                    ? 'بالضغط على الدفع، أنت توافق على شروط الخدمة'
-                    : 'By clicking Pay, you agree to our Terms of Service'}
+                  {t('payment.termsAgreement')}
                 </p>
               </div>
             ) : (
@@ -398,9 +382,7 @@ export default function PaymentCheckout() {
                 <div className="p-4 bg-cream-50 border-b border-cream-200">
                   <p className="text-sm text-ink-600 flex items-center gap-2">
                     <Shield className="w-4 h-4 text-emerald-600" />
-                    {isRTL
-                      ? 'أدخل بيانات الدفع في النموذج الآمن أدناه'
-                      : 'Enter your payment details in the secure form below'}
+                    {t('payment.enterPaymentDetails')}
                   </p>
                 </div>
                 <iframe

@@ -35,9 +35,11 @@ interface AppraiserProfile {
   availability: string | null;
   signature_url: string | null;
   stamp_url: string | null;
-  status: 'pending' | 'under_review' | 'verified' | 'rejected';
+  status: 'incomplete' | 'pending' | 'under_review' | 'verified' | 'rejected';
   submitted_at: string | null;
   rejection_reason: string | null;
+  is_draft?: boolean;
+  current_step?: number;
   users: { email: string; full_name: string };
   appraiser_service_areas: Array<{
     district_id: string;
@@ -57,6 +59,7 @@ interface AppraiserProfile {
 }
 
 interface StatusCounts {
+  incomplete: number;
   pending: number;
   under_review: number;
   verified: number;
@@ -65,6 +68,7 @@ interface StatusCounts {
 
 const STATUS_TABS = [
   { id: null, label: 'All' },
+  { id: 'incomplete', label: 'Incomplete' },
   { id: 'pending', label: 'Pending' },
   { id: 'under_review', label: 'Under review' },
   { id: 'verified', label: 'Verified' },
@@ -75,6 +79,7 @@ export function VerificationsPage() {
   const { session } = useAuth();
   const [profiles, setProfiles] = React.useState<AppraiserProfile[]>([]);
   const [statusCounts, setStatusCounts] = React.useState<StatusCounts>({
+    incomplete: 0,
     pending: 0,
     under_review: 0,
     verified: 0,
@@ -101,7 +106,9 @@ export function VerificationsPage() {
       if (res.ok) {
         const data = await res.json();
         setProfiles(data.profiles || []);
-        setStatusCounts(data.statusCounts || { pending: 0, under_review: 0, verified: 0, rejected: 0 });
+        setStatusCounts(
+          data.statusCounts || { incomplete: 0, pending: 0, under_review: 0, verified: 0, rejected: 0 }
+        );
       }
     } catch (err) {
       console.error('Error loading profiles:', err);
@@ -115,6 +122,8 @@ export function VerificationsPage() {
 
   const openReview = async (profile: AppraiserProfile) => {
     if (!session?.access_token) return;
+    // Incomplete appraisers have no submitted profile to review yet.
+    if (profile.is_draft) return;
 
     // Fetch full profile details
     try {
@@ -164,7 +173,8 @@ export function VerificationsPage() {
         <div className="mb-8">
           <h1 className="text-h2 text-ink-600 mb-2">Verification queue</h1>
           <p className="text-body-m text-ink-400">
-            {totalPending} pending &middot; {statusCounts.verified} verified
+            {statusCounts.incomplete} incomplete &middot; {totalPending} pending &middot;{' '}
+            {statusCounts.verified} verified
           </p>
         </div>
 
@@ -269,13 +279,19 @@ export function VerificationsPage() {
                       <StatusBadge status={profile.status} />
                     </td>
                     <td className="px-6 py-4">
-                      <Button
-                        variant="ghost"
-                        className="text-emerald-600"
-                        onClick={() => openReview(profile)}
-                      >
-                        Review <ChevronRight className="h-4 w-4 ml-1" />
-                      </Button>
+                      {profile.is_draft ? (
+                        <span className="text-[11px] text-ink-400 whitespace-nowrap">
+                          Step {profile.current_step || 1} of 6 &middot; not submitted
+                        </span>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          className="text-emerald-600"
+                          onClick={() => openReview(profile)}
+                        >
+                          Review <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -305,6 +321,7 @@ export function VerificationsPage() {
 
 function StatusBadge({ status }: { status: string }) {
   const styles = {
+    incomplete: 'bg-ink-100 text-ink-500',
     pending: 'bg-yellow-100 text-yellow-800',
     under_review: 'bg-blue-100 text-blue-800',
     verified: 'bg-emerald-100 text-emerald-800',
@@ -312,6 +329,7 @@ function StatusBadge({ status }: { status: string }) {
   };
 
   const labels = {
+    incomplete: 'Incomplete',
     pending: 'Pending',
     under_review: 'Under review',
     verified: 'Verified',

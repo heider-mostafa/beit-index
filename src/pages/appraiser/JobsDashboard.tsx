@@ -90,7 +90,7 @@ const STATUS_LABELS: Record<string, { en: string; ar: string; color: string }> =
 };
 
 export default function AppraiserJobsDashboard() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { session } = useAuth();
   const isRTL = i18n.language === 'ar';
 
@@ -132,7 +132,7 @@ export default function AppraiserJobsDashboard() {
       setStats(statsData.stats || null);
     } catch (err) {
       console.error('Error fetching data:', err);
-      setError(isRTL ? 'فشل في تحميل البيانات' : 'Failed to load data');
+      setError(t('jobs.errors.failedToLoad'));
     } finally {
       setLoading(false);
     }
@@ -171,7 +171,7 @@ export default function AppraiserJobsDashboard() {
   const handleDecline = async (jobId: string) => {
     if (!session?.access_token) return;
 
-    const reason = prompt(isRTL ? 'سبب الرفض (اختياري):' : 'Reason for declining (optional):');
+    const reason = prompt(t('jobs.errors.declineReason'));
 
     setActionLoading(jobId);
     try {
@@ -270,22 +270,16 @@ export default function AppraiserJobsDashboard() {
               </span>
               {isOverdue && (
                 <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                  {isRTL ? 'متأخر' : 'Overdue'}
+                  {t('jobs.card.overdue')}
                 </span>
               )}
             </div>
 
             {/* Property Info */}
             <h3 className="text-lg font-semibold text-ink-900">
-              {isRTL
-                ? PROPERTY_TYPE_LABELS[job.property_type]?.ar
-                : PROPERTY_TYPE_LABELS[job.property_type]?.en}
+              {t(`propertyTypes.${job.property_type}`)}
               {' - '}
-              {job.report_kind === 'brief'
-                ? isRTL ? 'تقرير موجز' : 'Brief Report'
-                : job.report_kind === 'detailed'
-                ? isRTL ? 'تقرير تفصيلي' : 'Detailed Report'
-                : isRTL ? 'تقرير كامل' : 'Full Report'}
+              {t(`marketplace.reportKinds.${job.report_kind}`)}
             </h3>
 
             <div className="flex items-center gap-1 text-ink-500 mt-1">
@@ -315,14 +309,14 @@ export default function AppraiserJobsDashboard() {
                 <span>{job.approximate_area} m²</span>
               )}
               {job.bedrooms && (
-                <span>{job.bedrooms} {isRTL ? 'غرف' : 'BR'}</span>
+                <span>{job.bedrooms} {t('jobs.card.rooms')}</span>
               )}
               <span className="flex items-center gap-1">
                 <Clock className="w-4 h-4" />
-                {isRTL ? 'التسليم:' : 'Due:'} {formatDate(job.due_date)}
+                {t('jobs.card.due')} {formatDate(job.due_date)}
                 {isUrgent && !isOverdue && (
                   <span className="text-orange-600 font-medium">
-                    ({daysUntilDue} {isRTL ? 'يوم' : 'day'}{daysUntilDue !== 1 ? 's' : ''})
+                    ({daysUntilDue} {daysUntilDue === 1 ? t('jobs.card.day') : t('jobs.card.days')})
                   </span>
                 )}
               </span>
@@ -332,7 +326,7 @@ export default function AppraiserJobsDashboard() {
             {job.client && (
               <div className="mt-4 p-3 bg-cream-50 rounded-lg">
                 <p className="text-sm font-medium text-ink-700 mb-2">
-                  {isRTL ? 'معلومات العميل' : 'Client Information'}
+                  {t('jobs.card.clientInfo')}
                 </p>
                 <div className="flex flex-wrap gap-4 text-sm text-ink-600">
                   <span className="flex items-center gap-1">
@@ -350,7 +344,7 @@ export default function AppraiserJobsDashboard() {
             {/* Special Instructions */}
             {job.special_instructions && (
               <div className="mt-3 p-3 bg-yellow-50 rounded-lg text-sm">
-                <span className="font-medium">{isRTL ? 'تعليمات خاصة:' : 'Special Instructions:'}</span>{' '}
+                <span className="font-medium">{t('jobs.card.specialInstructions')}</span>{' '}
                 {job.special_instructions}
               </div>
             )}
@@ -359,12 +353,12 @@ export default function AppraiserJobsDashboard() {
           {/* Earnings & Actions */}
           <div className="text-right ml-6 flex-shrink-0">
             <div className="mb-4">
-              <p className="text-sm text-ink-500">{isRTL ? 'أرباحك' : 'Your Earnings'}</p>
+              <p className="text-sm text-ink-500">{t('jobs.card.yourEarnings')}</p>
               <p className="text-2xl font-bold text-emerald-600">
                 {formatCurrency(job.appraiser_earnings)}
               </p>
               <p className="text-xs text-ink-400">
-                {isRTL ? 'من إجمالي' : 'of'} {formatCurrency(job.total_price)}
+                {t('jobs.card.of')} {formatCurrency(job.total_price)}
               </p>
             </div>
 
@@ -381,7 +375,7 @@ export default function AppraiserJobsDashboard() {
                     ) : (
                       <CheckCircle className="w-4 h-4" />
                     )}
-                    {isRTL ? 'قبول' : 'Accept'}
+                    {t('jobs.actions.accept')}
                   </button>
                   <button
                     onClick={() => handleDecline(job.id)}
@@ -389,14 +383,14 @@ export default function AppraiserJobsDashboard() {
                     className="w-full px-4 py-2 border border-red-300 text-red-600 text-sm rounded-lg hover:bg-red-50 disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     <XCircle className="w-4 h-4" />
-                    {isRTL ? 'رفض' : 'Decline'}
+                    {t('jobs.actions.decline')}
                   </button>
                 </>
               )}
 
               {type === 'active' && job.status === 'accepted' && (
                 <div className="text-center text-sm text-yellow-600 bg-yellow-50 p-2 rounded-lg">
-                  {isRTL ? 'في انتظار دفع العميل' : 'Awaiting client payment'}
+                  {t('jobs.actions.awaitingClientPayment')}
                 </div>
               )}
 
@@ -411,7 +405,7 @@ export default function AppraiserJobsDashboard() {
                   ) : (
                     <Play className="w-4 h-4" />
                   )}
-                  {isRTL ? 'بدء العمل' : 'Start Work'}
+                  {t('jobs.actions.startWork')}
                 </button>
               )}
 
@@ -421,13 +415,13 @@ export default function AppraiserJobsDashboard() {
                   className="w-full px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 flex items-center justify-center gap-2"
                 >
                   <ChevronRight className="w-4 h-4" />
-                  {isRTL ? 'تسليم التقرير' : 'Deliver Report'}
+                  {t('jobs.actions.deliverReport')}
                 </button>
               )}
 
               {type === 'active' && job.status === 'delivered' && (
                 <div className="text-center text-sm text-emerald-600 bg-emerald-50 p-2 rounded-lg">
-                  {isRTL ? 'في انتظار قبول العميل' : 'Awaiting client acceptance'}
+                  {t('jobs.actions.awaitingClientAcceptance')}
                 </div>
               )}
 
@@ -438,7 +432,7 @@ export default function AppraiserJobsDashboard() {
                   className="w-full mt-2 px-4 py-2 border border-cream-300 text-ink-600 text-sm rounded-lg hover:bg-cream-100 flex items-center justify-center gap-2"
                 >
                   <MessageCircle className="w-4 h-4" />
-                  {isRTL ? 'التفاصيل والمحادثة' : 'Details & Messages'}
+                  {t('jobs.actions.detailsMessages')}
                 </Link>
               )}
             </div>
@@ -464,12 +458,10 @@ export default function AppraiserJobsDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-h3 text-ink-600">
-                {isRTL ? 'لوحة الطلبات' : 'Jobs Dashboard'}
+                {t('jobs.dashboard.title')}
               </h1>
               <p className="text-body-s text-ink-300 mt-1">
-                {isRTL
-                  ? 'إدارة طلبات التقييم الواردة'
-                  : 'Manage your incoming appraisal requests'}
+                {t('jobs.dashboard.subtitle')}
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -478,7 +470,7 @@ export default function AppraiserJobsDashboard() {
                 className="flex items-center gap-2 px-4 py-2 text-[13px] font-medium text-emerald-500 bg-emerald-50 rounded-sm hover:bg-emerald-100 transition"
               >
                 <DollarSign className="w-4 h-4" />
-                {isRTL ? 'إعدادات الأسعار' : 'Pricing Settings'}
+                {t('jobs.dashboard.pricingSettings')}
               </Link>
               <button
                 onClick={fetchData}
@@ -493,23 +485,23 @@ export default function AppraiserJobsDashboard() {
           {stats && (
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-8">
               <div className="bg-amber-50 border border-amber-100 rounded-sm p-4">
-                <p className="text-body-s text-amber-600">{isRTL ? 'طلبات جديدة' : 'New Requests'}</p>
+                <p className="text-body-s text-amber-600">{t('jobs.dashboard.newRequests')}</p>
                 <p className="text-h4 text-amber-700 mt-1">{stats.pending_acceptance}</p>
               </div>
               <div className="bg-yellow-50 border border-yellow-100 rounded-sm p-4">
-                <p className="text-body-s text-yellow-600">{isRTL ? 'في انتظار الدفع' : 'Awaiting Payment'}</p>
+                <p className="text-body-s text-yellow-600">{t('jobs.dashboard.awaitingPayment')}</p>
                 <p className="text-h4 text-yellow-700 mt-1">{stats.accepted}</p>
               </div>
               <div className="bg-purple-50 border border-purple-100 rounded-sm p-4">
-                <p className="text-body-s text-purple-600">{isRTL ? 'قيد التنفيذ' : 'In Progress'}</p>
+                <p className="text-body-s text-purple-600">{t('jobs.dashboard.inProgress')}</p>
                 <p className="text-h4 text-purple-700 mt-1">{stats.in_progress}</p>
               </div>
               <div className="bg-emerald-50 border border-emerald-100 rounded-sm p-4">
-                <p className="text-body-s text-emerald-600">{isRTL ? 'مكتمل' : 'Completed'}</p>
+                <p className="text-body-s text-emerald-600">{t('jobs.dashboard.completed')}</p>
                 <p className="text-h4 text-emerald-700 mt-1">{stats.total_completed}</p>
               </div>
               <div className="bg-emerald-50 border border-emerald-100 rounded-sm p-4">
-                <p className="text-body-s text-emerald-600">{isRTL ? 'إجمالي الأرباح' : 'Total Earnings'}</p>
+                <p className="text-body-s text-emerald-600">{t('jobs.dashboard.totalEarnings')}</p>
                 <p className="text-h4 text-emerald-700 mt-1">{formatCurrency(stats.total_earnings)}</p>
               </div>
             </div>
@@ -536,7 +528,7 @@ export default function AppraiserJobsDashboard() {
             }`}
           >
             <Briefcase className="w-5 h-5" />
-            {isRTL ? 'طلبات جديدة' : 'New Requests'}
+            {t('jobs.dashboard.newRequests')}
             {incomingRequests.length > 0 && (
               <span className={`px-2 py-0.5 rounded-full text-xs ${
                 activeTab === 'requests' ? 'bg-white/20' : 'bg-orange-100 text-orange-700'
@@ -554,7 +546,7 @@ export default function AppraiserJobsDashboard() {
             }`}
           >
             <CheckCircle className="w-5 h-5" />
-            {isRTL ? 'الطلبات النشطة' : 'Active Jobs'}
+            {t('jobs.dashboard.activeJobs')}
             {activeJobs.length > 0 && (
               <span className={`px-2 py-0.5 rounded-full text-xs ${
                 activeTab === 'active' ? 'bg-white/20' : 'bg-blue-100 text-blue-700'
@@ -572,12 +564,10 @@ export default function AppraiserJobsDashboard() {
               <div className="bg-cream-200 border border-ink-100 rounded-sm p-12 text-center">
                 <Briefcase className="w-12 h-12 text-ink-200 mx-auto mb-4" />
                 <h3 className="text-h4 text-ink-600 mb-2">
-                  {isRTL ? 'لا توجد طلبات جديدة' : 'No New Requests'}
+                  {t('jobs.dashboard.noNewRequests')}
                 </h3>
                 <p className="text-body-s text-ink-400">
-                  {isRTL
-                    ? 'ستظهر هنا طلبات العملاء الجديدة'
-                    : 'New client requests will appear here'}
+                  {t('jobs.dashboard.newRequestsWillAppear')}
                 </p>
               </div>
             ) : (
@@ -592,18 +582,16 @@ export default function AppraiserJobsDashboard() {
               <div className="bg-white rounded-xl shadow-sm p-12 text-center">
                 <CheckCircle className="w-12 h-12 text-ink-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-ink-900 mb-2">
-                  {isRTL ? 'لا توجد طلبات نشطة' : 'No Active Jobs'}
+                  {t('jobs.dashboard.noActiveJobs')}
                 </h3>
                 <p className="text-ink-500 mb-4">
-                  {isRTL
-                    ? 'اقبل طلبات جديدة للبدء'
-                    : 'Accept new requests to get started'}
+                  {t('jobs.dashboard.acceptNewRequests')}
                 </p>
                 <button
                   onClick={() => setActiveTab('requests')}
                   className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
                 >
-                  {isRTL ? 'عرض الطلبات الجديدة' : 'View New Requests'}
+                  {t('jobs.dashboard.viewNewRequests')}
                 </button>
               </div>
             ) : (

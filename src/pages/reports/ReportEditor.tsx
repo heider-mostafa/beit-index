@@ -849,9 +849,31 @@ export function ReportEditorPage() {
               <Button
                 variant="secondary"
                 className="flex items-center gap-2"
-                onClick={() => {
-                  // Open PDF in new tab for download
-                  window.open(`/api/reports/${report.id}/pdf`, '_blank');
+                onClick={async () => {
+                  // Fetch with the auth header (window.open can't send it) and
+                  // download the resulting blob.
+                  if (!session?.access_token) return;
+                  try {
+                    const res = await fetch(`/api/reports/${report.id}/pdf`, {
+                      headers: { Authorization: `Bearer ${session.access_token}` },
+                    });
+                    if (!res.ok) {
+                      const data = await res.json().catch(() => ({}));
+                      throw new Error(data.error || 'Failed to generate PDF');
+                    }
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `appraisal-${report.id.slice(0, 8)}.pdf`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                  } catch (err) {
+                    console.error('Error downloading PDF:', err);
+                    alert(err instanceof Error ? err.message : 'Failed to download PDF');
+                  }
                 }}
               >
                 <FileDown className="h-4 w-4" />
