@@ -8,6 +8,13 @@
 import express from 'express';
 import apiRouter from '../src/server/api';
 
+// Allow up to 60s so the one-time PDF render (serverless Chromium cold start +
+// rendering) can finish. After the first render the PDF is cached in storage,
+// so subsequent downloads are instant and don't hit this path.
+export const config = {
+  maxDuration: 60,
+};
+
 const app = express();
 
 app.use(express.json({ limit: '10mb' }));

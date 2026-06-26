@@ -18,6 +18,31 @@ function getChromePath(): string {
   }
 }
 
+// Resolve Puppeteer launch options for the current environment.
+// On Vercel/Lambda there is no system Chrome, so use the serverless Chromium
+// build (@sparticuz/chromium). Locally and in containers, use the system/installed
+// Chrome via getChromePath(). The serverless package is imported dynamically so
+// it never loads during local development.
+async function getLaunchOptions(): Promise<Parameters<typeof puppeteer.launch>[0]> {
+  const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+
+  if (isServerless) {
+    const chromium = (await import('@sparticuz/chromium')).default;
+    return {
+      executablePath: await chromium.executablePath(),
+      args: chromium.args,
+      headless: true,
+      defaultViewport: chromium.defaultViewport,
+    };
+  }
+
+  return {
+    executablePath: getChromePath(),
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  };
+}
+
 // Convert number to Arabic words
 function numberToArabicWords(num: number): string {
   if (num === 0) return 'صفر';
@@ -1617,11 +1642,7 @@ function generateReportHTML(report: ReportData): string {
 }
 
 export async function generatePDF(report: ReportData): Promise<Buffer> {
-  const browser = await puppeteer.launch({
-    executablePath: getChromePath(),
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
+  const browser = await puppeteer.launch(await getLaunchOptions());
 
   try {
     const page = await browser.newPage();

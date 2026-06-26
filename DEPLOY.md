@@ -84,8 +84,21 @@ gcloud run deploy beit-index \
 - **Static/CDN (optional):** you can serve the SPA from a CDN and point `/api`
   at this service; simplest is to let this service serve both (default).
 
-## Vercel
+## Vercel (free / serverless option)
 
-`vercel.json` + `api/[...path].ts` exist for a quick Vercel preview, but Puppeteer
-PDF generation does not work under Vercel's serverless runtime. For production,
-use a container host as above.
+`vercel.json` + `api/[...path].ts` run the whole API as one serverless function.
+Supabase and Inngest work normally on Vercel. PDF generation works too: when
+`process.env.VERCEL` is set, `pdf.ts` uses the serverless Chromium build
+(`@sparticuz/chromium`) instead of a system Chrome, and rendered PDFs are cached
+in `job-deliverables` so each report renders only once.
+
+To deploy on Vercel:
+1. Set the env vars above in the Vercel project (Production + Preview). The
+   frontend `VITE_*` vars are read at build time.
+2. The function `maxDuration` is set to 60s for the one-time PDF render.
+3. Point Inngest Cloud at `https://<your-app>.vercel.app/api/inngest`.
+
+Caveats: Vercel Hobby is intended for non-commercial use (move to Pro when it's
+a real product), and the first render of each report can be slow under
+serverless cold starts (mitigated by caching). For heavy/commercial production,
+the container host above is more predictable.
