@@ -1,0 +1,37 @@
+# Render Blueprint — deploys the app as a Docker web service (so Chromium + the
+# Arabic fonts in the Dockerfile are installed and PDF generation works).
+services:
+  - type: web
+    name: beit-index
+    runtime: docker
+    plan: free
+    branch: fix/appraiser-provisioning
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Secrets — fill these in via the Render dashboard (sync: false keeps them
+      # out of git). The VITE_* ones are passed to the Docker build automatically.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: PAYMOB_API_KEY
+        sync: false
+      - key: PAYMOB_HMAC_SECRET
+        sync: false
+      - key: PAYMOB_INTEGRATION_ID
+        sync: false
+      - key: PAYMOB_IFRAME_ID
+        sync: false
+      - key: APP_URL
+        sync: false
