@@ -390,7 +390,14 @@ export const SignupPage = () => {
       }
     }
 
-    // Show the 6-digit code entry screen
+    // If email confirmation is disabled, signUp already returned a session, so
+    // the user is logged in — skip the code screen and let the redirect effect
+    // route them into onboarding. Otherwise show the 6-digit code entry screen.
+    if (result.session) {
+      setLoading(false);
+      return;
+    }
+
     setShowOtp(true);
     setLoading(false);
   };

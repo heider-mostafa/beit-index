@@ -19,7 +19,7 @@ interface AuthContextType {
   session: Session | null;
   profile: UserProfile | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string, role: UserRole) => Promise<{ error: AuthError | Error | null; user?: User }>;
+  signUp: (email: string, password: string, fullName: string, role: UserRole) => Promise<{ error: AuthError | Error | null; user?: User; session?: Session | null }>;
   verifyOtp: (email: string, token: string) => Promise<{ error: AuthError | Error | null }>;
   resendOtp: (email: string) => Promise<{ error: AuthError | Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
@@ -189,9 +189,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: new Error('Failed to create user') };
       }
 
-      // Profile will be created via /api/auth/create-profile after email confirmation
-      // This allows for proper invite token handling and onboarding draft creation
-      return { error: null, user: data.user };
+      // session is non-null only when email confirmation is disabled (the user
+      // is signed in immediately); null when a confirmation step is required.
+      return { error: null, user: data.user, session: data.session };
     } catch (err) {
       console.error('Sign up error:', err);
       return { error: err as Error };
