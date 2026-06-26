@@ -65,24 +65,27 @@ export const LoginPage = () => {
     if (role === 'admin') {
       navigate('/admin/verifications');
     } else if (role === 'appraiser') {
-      // Check onboarding status
-      const token = (await (await import('@/src/lib/supabase/browser')).getSupabaseBrowserClient().auth.getSession()).data.session?.access_token;
-      if (token) {
-        const res = await fetch('/api/onboarding/status', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
+      // Route by onboarding status. If the status check fails for any reason,
+      // fall back to /onboarding so the user is never stranded on the login page.
+      try {
+        const token = (await (await import('@/src/lib/supabase/browser')).getSupabaseBrowserClient().auth.getSession()).data.session?.access_token;
+        const res = token
+          ? await fetch('/api/onboarding/status', { headers: { Authorization: `Bearer ${token}` } })
+          : null;
+        if (res?.ok) {
           const status = await res.json();
-          if (!status.hasProfile && status.hasDraft) {
-            navigate('/onboarding');
-          } else if (status.hasProfile && status.profileStatus === 'pending') {
+          if (status.hasProfile && status.profileStatus === 'pending') {
             navigate('/onboarding/under-review');
           } else if (status.hasProfile && status.profileStatus === 'verified') {
             navigate('/dashboard');
           } else {
             navigate('/onboarding');
           }
+        } else {
+          navigate('/onboarding');
         }
+      } catch {
+        navigate('/onboarding');
       }
     } else {
       navigate('/');
