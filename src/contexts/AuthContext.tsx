@@ -99,66 +99,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return fetchProfile(authUser.id);
   };
 
+  // Establish the session. IMPORTANT: the onAuthStateChange callback must stay
+  // synchronous and must NOT await Supabase calls — auth-js holds an internal
+  // lock while firing it, so awaiting a query/fetch here can deadlock and freeze
+  // login intermittently. Profile loading happens in the separate effect below.
   useEffect(() => {
-    let mounted = true;
+    const supabase = getSupabaseBrowserClient();
 
-    const initAuth = async () => {
-      try {
-        const supabase = getSupabaseBrowserClient();
-
-        // Get initial session
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
-
-        if (mounted) {
-          setSession(initialSession);
-          setUser(initialSession?.user ?? null);
-
-          if (initialSession?.user) {
-            const userProfile = await ensureProfile(initialSession.user);
-            if (mounted) {
-              setProfile(userProfile);
-            }
-          }
-          setLoading(false);
-        }
-
-        // Listen for auth changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          async (event, newSession) => {
-            if (mounted) {
-              setSession(newSession);
-              setUser(newSession?.user ?? null);
-
-              if (newSession?.user) {
-                const userProfile = await ensureProfile(newSession.user);
-                if (mounted) {
-                  setProfile(userProfile);
-                }
-              } else {
-                setProfile(null);
-              }
-              setLoading(false);
-            }
-          }
-        );
-
-        return () => {
-          subscription.unsubscribe();
-        };
-      } catch (error) {
+    supabase.auth
+      .getSession()
+      .then(({ data: { session: initialSession } }) => {
+        setSession(initialSession);
+        setUser(initialSession?.user ?? null);
+        // No user means no profile to load — release the loading gate now.
+        if (!initialSession?.user) setLoading(false);
+      })
+      .catch((error) => {
         console.error('Auth initialization error:', error);
-        if (mounted) {
+        setLoading(false);
+      });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, newSession) => {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+        if (!newSession?.user) {
+          setProfile(null);
           setLoading(false);
         }
       }
-    };
-
-    initAuth();
+    );
 
     return () => {
-      mounted = false;
+      subscription.unsubscribe();
     };
   }, []);
+
+  // Load (and self-heal) the profile whenever the authenticated user changes.
+  // Kept out of onAuthStateChange to avoid the auth-lock deadlock above.
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    setLoading(true);
+    ensureProfile(user)
+      .then((p) => {
+        if (active) setProfile(p);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const signUp = async (email: string, password: string, fullName: string, role: UserRole) => {
     try {
