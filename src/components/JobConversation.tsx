@@ -5,6 +5,7 @@
  * Shows message history and allows sending new messages.
  */
 
+import * as React from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/src/contexts/AuthContext';

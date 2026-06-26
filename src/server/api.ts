@@ -3586,11 +3586,11 @@ router.get('/bank/marketplace', authMiddleware, bankMiddleware, async (req: Auth
         .select('listing_id, purchase:purchase_id(bank_account_id, status)')
         .in('listing_id', listingIds);
 
-      purchasedIds = (purchasedItems || [])
-        .filter((item: { purchase: { bank_account_id: string; status: string } }) =>
+      purchasedIds = ((purchasedItems || []) as unknown as Array<{ listing_id: string; purchase: { bank_account_id: string; status: string } | null }>)
+        .filter((item) =>
           item.purchase?.bank_account_id === bankAccount.id && item.purchase?.status === 'completed'
         )
-        .map((item: { listing_id: string }) => item.listing_id);
+        .map((item) => item.listing_id);
     }
 
     // Get volume discounts
@@ -3666,8 +3666,9 @@ router.get('/bank/marketplace/:id', authMiddleware, bankMiddleware, async (req: 
         .eq('listing_id', listingId)
         .single();
 
-      isPurchased = purchaseItem?.purchase?.bank_account_id === bankAccount.id &&
-                    purchaseItem?.purchase?.status === 'completed';
+      const pi = purchaseItem as unknown as { purchase: { bank_account_id: string; status: string } | null } | null;
+      isPurchased = pi?.purchase?.bank_account_id === bankAccount.id &&
+                    pi?.purchase?.status === 'completed';
     }
 
     res.json({
@@ -3721,8 +3722,8 @@ router.get('/bank/cart', authMiddleware, bankMiddleware, async (req: Authenticat
     if (error) throw error;
 
     // Calculate totals
-    const items = cartItems || [];
-    const subtotal = items.reduce((sum: number, item: { listing: { listing_price_piasters: number } }) =>
+    const items = (cartItems || []) as unknown as Array<{ id: string; added_at: string; listing: { listing_price_piasters: number } | null }>;
+    const subtotal = items.reduce((sum, item) =>
       sum + (item.listing?.listing_price_piasters || 0), 0);
 
     // Get applicable discount
@@ -3789,8 +3790,9 @@ router.post('/bank/cart', authMiddleware, bankMiddleware, async (req: Authentica
       .eq('listing_id', listingId)
       .single();
 
-    if (alreadyPurchased?.purchase?.bank_account_id === bankAccount.id &&
-        alreadyPurchased?.purchase?.status === 'completed') {
+    const ap = alreadyPurchased as unknown as { purchase: { bank_account_id: string; status: string } | null } | null;
+    if (ap?.purchase?.bank_account_id === bankAccount.id &&
+        ap?.purchase?.status === 'completed') {
       return res.status(400).json({ error: 'Listing already purchased' });
     }
 
@@ -3895,9 +3897,8 @@ router.post('/bank/checkout', authMiddleware, bankMiddleware, async (req: Authen
       return res.status(400).json({ error: 'Cart is empty' });
     }
 
-    const items = cartItems.map((item: { listing: { id: string; listing_price_piasters: number } }) => item.listing);
-    const subtotal = items.reduce((sum: number, item: { listing_price_piasters: number }) =>
-      sum + (item.listing_price_piasters || 0), 0);
+    const items = (cartItems as unknown as Array<{ listing: { id: string; listing_price_piasters: number } }>).map((item) => item.listing);
+    const subtotal = items.reduce((sum, item) => sum + (item.listing_price_piasters || 0), 0);
 
     // Get applicable discount
     const { data: discounts } = await supabase
@@ -3960,9 +3961,8 @@ router.post('/bank/checkout/pay', authMiddleware, bankMiddleware, async (req: Au
       return res.status(400).json({ error: 'Cart is empty' });
     }
 
-    const items = cartItems.map((item: { listing: { id: string; listing_price_piasters: number } }) => item.listing);
-    const subtotal = items.reduce((sum: number, item: { listing_price_piasters: number }) =>
-      sum + (item.listing_price_piasters || 0), 0);
+    const items = (cartItems as unknown as Array<{ listing: { id: string; listing_price_piasters: number } }>).map((item) => item.listing);
+    const subtotal = items.reduce((sum, item) => sum + (item.listing_price_piasters || 0), 0);
 
     // Get applicable discount
     const { data: discounts } = await supabase
@@ -4008,36 +4008,32 @@ router.post('/bank/checkout/pay', authMiddleware, bankMiddleware, async (req: Au
 
     if (itemsError) throw itemsError;
 
-    // Initiate Paymob payment
-    const paymobResult = await paymob.initiatePayment({
-      amount: total,
-      orderId: purchase.id,
-      billingData: {
-        first_name: bankAccount.name || 'Bank',
-        last_name: 'Account',
+    // Initiate Paymob payment (same signature as the appraisal checkout)
+    const paymobResult = await paymob.initiatePayment(
+      total,
+      purchase.id,
+      {
+        firstName: bankAccount.name || 'Bank',
+        lastName: 'Account',
         email: req.user!.email,
-        phone_number: '01000000000',
-      },
-      metadata: {
-        type: 'bank_report_purchase',
-        purchaseId: purchase.id,
-        bankAccountId: bankAccount.id,
-        itemCount: items.length,
-      },
-    });
+        phone: '+201000000000',
+        city: 'Cairo',
+        country: 'EG',
+      }
+    );
 
     // Update purchase with Paymob order ID
     await supabase
       .from('bank_report_purchases')
       .update({
-        paymob_order_id: paymobResult.orderId,
+        paymob_order_id: paymobResult.paymobOrderId.toString(),
         status: 'processing',
       })
       .eq('id', purchase.id);
 
     res.json({
       purchaseId: purchase.id,
-      paymobOrderId: paymobResult.orderId,
+      paymobOrderId: paymobResult.paymobOrderId,
       iframeUrl: paymobResult.iframeUrl,
       total,
     });
@@ -4052,11 +4048,12 @@ router.post('/bank/checkout/callback', async (req: Request, res: Response) => {
   try {
     const supabase = getServiceClient();
 
-    // Verify HMAC signature
+    // Verify HMAC signature. Paymob posts the callback body and sends the hmac
+    // as a query param — same handling as the appraisal payment callback.
     const hmacSecret = process.env.PAYMOB_HMAC_SECRET;
-    if (hmacSecret) {
-      const isValid = paymob.verifyHmac(req.query, hmacSecret);
-      if (!isValid) {
+    const receivedHmac = req.query.hmac as string | undefined;
+    if (hmacSecret && receivedHmac) {
+      if (!paymob.verifyHmac(req.body, receivedHmac)) {
         console.error('Invalid HMAC signature for bank purchase callback');
         return res.status(400).json({ error: 'Invalid signature' });
       }
@@ -4214,8 +4211,8 @@ router.get('/bank/reports', authMiddleware, bankMiddleware, async (req: Authenti
     if (error) throw error;
 
     // Filter to only show completed purchases
-    const reports = (purchasedReports || []).filter(
-      (r: { purchase: { status: string } | null }) => r.purchase?.status === 'completed'
+    const reports = ((purchasedReports || []) as unknown as Array<{ purchase: { status: string } | null }>).filter(
+      (r) => r.purchase?.status === 'completed'
     );
 
     res.json({ reports });
@@ -4253,8 +4250,9 @@ router.get('/bank/reports/:listingId', authMiddleware, bankMiddleware, async (re
       return res.status(403).json({ error: 'Report not purchased' });
     }
 
-    if (purchaseItem.purchase?.bank_account_id !== bankAccount.id ||
-        purchaseItem.purchase?.status !== 'completed') {
+    const pItem = purchaseItem as unknown as { purchase: { bank_account_id: string; status: string } | null };
+    if (pItem.purchase?.bank_account_id !== bankAccount.id ||
+        pItem.purchase?.status !== 'completed') {
       return res.status(403).json({ error: 'Report not purchased' });
     }
 
@@ -4299,13 +4297,15 @@ router.get('/bank/reports/:listingId', authMiddleware, bankMiddleware, async (re
 
     if (listingError) throw listingError;
 
+    const listingJob = (listing as unknown as { job?: { delivered_report_json?: Record<string, unknown> } | null })?.job;
+
     // Return full report data (anonymized - no client info, exact address, or photos)
     res.json({
       report: {
         listing,
         // Extract anonymized report content
-        content: listing.job?.delivered_report_json ? {
-          ...listing.job.delivered_report_json,
+        content: listingJob?.delivered_report_json ? {
+          ...listingJob.delivered_report_json,
           // Remove any sensitive fields that might be in the JSON
           clientName: undefined,
           clientContact: undefined,
