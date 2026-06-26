@@ -3,6 +3,11 @@ import { formatEGP } from '@/src/lib/appraisal/engine';
 
 // Find Chrome executable path based on OS
 function getChromePath(): string {
+  // In containers/production, point at the installed Chromium via env var
+  // (set in the Dockerfile). Falls back to per-OS defaults for local dev.
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+    return process.env.PUPPETEER_EXECUTABLE_PATH;
+  }
   const platform = process.platform;
   if (platform === 'darwin') {
     return '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';

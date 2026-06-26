@@ -2344,6 +2344,26 @@ router.get('/reports/:id/pdf', authMiddleware, async (req: AuthenticatedRequest,
       return res.status(400).json({ error: 'Report must be finalized before generating PDF' });
     }
 
+    // Finalized reports are immutable, so the PDF only needs rendering once.
+    // Serve a cached copy from job-deliverables when present — instant download,
+    // no Puppeteer. Pass ?refresh=1 to force regeneration.
+    const serviceClient = getServiceClient();
+    const pdfCachePath = `reports/${id}.pdf`;
+    const filename = `appraisal-${report.project_name || report.id.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.pdf`;
+
+    if (!req.query.refresh) {
+      const { data: cached } = await serviceClient.storage
+        .from('job-deliverables')
+        .download(pdfCachePath);
+      if (cached) {
+        const cachedBuffer = Buffer.from(await cached.arrayBuffer());
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-Length', cachedBuffer.length);
+        return res.send(cachedBuffer);
+      }
+    }
+
     // Get appraiser info including signature and stamp
     const { data: appraiser } = await supabase
       .from('users')
@@ -2401,9 +2421,16 @@ router.get('/reports/:id/pdf', authMiddleware, async (req: AuthenticatedRequest,
       appraiser: appraiserForPdf,
     });
 
-    // Set response headers for PDF download
-    const filename = `appraisal-${report.project_name || report.id.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.pdf`;
+    // Cache the rendered PDF so future downloads skip Puppeteer entirely.
+    // Non-fatal: still return the PDF even if caching fails.
+    const { error: cacheError } = await serviceClient.storage
+      .from('job-deliverables')
+      .upload(pdfCachePath, pdfBuffer, { contentType: 'application/pdf', upsert: true });
+    if (cacheError) {
+      console.error('Failed to cache report PDF:', cacheError.message);
+    }
 
+    // Set response headers for PDF download
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Length', pdfBuffer.length);
