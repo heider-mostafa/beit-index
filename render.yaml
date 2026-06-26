@@ -5,7 +5,7 @@ services:
     name: beit-index
     runtime: docker
     plan: free
-    branch: fix/appraiser-provisioning
+    branch: main
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/health
     envVars:
