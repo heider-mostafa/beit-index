@@ -13,8 +13,10 @@ async function startServer() {
   const app = express();
   const PORT = parseInt(process.env.PORT || "3000");
 
-  // Trust proxy for correct IP logging (required for rate limiting behind reverse proxy)
-  app.set("trust proxy", true);
+  // Trust exactly one proxy hop (Render's load balancer). Using `true` trusts
+  // every hop, which express-rate-limit rejects (clients could spoof
+  // X-Forwarded-For to bypass IP rate limiting).
+  app.set("trust proxy", 1);
 
   // Security headers with Helmet
   app.use(helmet({

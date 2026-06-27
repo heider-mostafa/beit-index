@@ -61,8 +61,8 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// Trust proxy for correct IP logging
-app.set("trust proxy", true);
+// Trust exactly one proxy hop (avoids express-rate-limit's permissive-proxy error)
+app.set("trust proxy", 1);
 
 // API routes
 app.use("/api", apiRouter);
