@@ -18,9 +18,31 @@ async function startServer() {
   // X-Forwarded-For to bypass IP rate limiting).
   app.set("trust proxy", 1);
 
-  // Security headers with Helmet
+  // Security headers with Helmet. In production we set an explicit CSP that
+  // allows the external services the app uses (Supabase, map tiles, images),
+  // otherwise Helmet's default `default-src 'self'` blocks them (incl. the
+  // Supabase auth call, which breaks login). Disabled in dev for convenience.
   app.use(helmet({
-    contentSecurityPolicy: process.env.NODE_ENV === "production" ? undefined : false,
+    contentSecurityPolicy:
+      process.env.NODE_ENV === "production"
+        ? {
+            directives: {
+              defaultSrc: ["'self'"],
+              // Supabase (auth / DB / storage / realtime) + OpenStreetMap tiles
+              connectSrc: [
+                "'self'",
+                "https://*.supabase.co",
+                "wss://*.supabase.co",
+                "https://*.tile.openstreetmap.org",
+              ],
+              imgSrc: ["'self'", "data:", "blob:", "https:"],
+              scriptSrc: ["'self'", "blob:"],
+              workerSrc: ["'self'", "blob:"],
+              styleSrc: ["'self'", "'unsafe-inline'"],
+              fontSrc: ["'self'", "data:"],
+            },
+          }
+        : false,
     crossOriginEmbedderPolicy: false,
   }));
 
