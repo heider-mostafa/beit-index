@@ -1423,6 +1423,22 @@ router.get('/admin/audit-log', authMiddleware, adminMiddleware, async (req: Auth
 // PUBLIC APPRAISER ROUTES
 // ============================================================================
 
+// Profile photos live in the private appraiser-assets bucket, so the stored
+// path can't be loaded directly by a browser. Return a short-lived signed URL.
+async function signAppraiserPhoto(photoUrl: string | null | undefined): Promise<string | null> {
+  if (!photoUrl || photoUrl.startsWith('http') || photoUrl.startsWith('data:')) {
+    return photoUrl ?? null;
+  }
+  try {
+    const { data } = await getServiceClient()
+      .storage.from('appraiser-assets')
+      .createSignedUrl(photoUrl, 60 * 60); // 1 hour
+    return data?.signedUrl ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // List verified appraisers
 router.get('/appraisers', async (req: Request, res: Response) => {
   const {
@@ -1497,6 +1513,13 @@ router.get('/appraisers', async (req: Request, res: Response) => {
       appraisersWithRatings.sort((a, b) => (a.starting_price_egp || 0) - (b.starting_price_egp || 0));
     }
 
+    // Replace stored photo paths with signed URLs so they display.
+    await Promise.all(
+      appraisersWithRatings.map(async (a: { photo_url?: string | null }) => {
+        a.photo_url = await signAppraiserPhoto(a.photo_url);
+      })
+    );
+
     res.json({
       appraisers: appraisersWithRatings,
       total: count,
@@ -1557,6 +1580,7 @@ router.get('/appraisers/:id', async (req: Request, res: Response) => {
 
     res.json({
       ...data,
+      photo_url: await signAppraiserPhoto(data.photo_url),
       averageRating: Math.round(avgRating * 10) / 10,
       reviewCount: ratings.length,
     });
