@@ -1641,7 +1641,9 @@ function generateReportHTML(report: ReportData): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>تقرير تقييم - ${report.project_name || report.property.address_description}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Use the Arabic fonts installed in the container (Dockerfile) instead of
+       fetching Google Fonts at render time — that network wait was timing out
+       Puppeteer's setContent on the server. -->
   <style>${sharedStyles}</style>
 </head>
 <body>
@@ -1657,7 +1659,9 @@ export async function generatePDF(report: ReportData): Promise<Buffer> {
   try {
     const page = await browser.newPage();
     const html = generateReportHTML(report);
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+    // 'load' (not 'networkidle0') — all images are inline data URLs, so there's
+    // nothing external to wait for; networkidle0 would hang on any stray request.
+    await page.setContent(html, { waitUntil: 'load', timeout: 30000 });
 
     const pdf = await page.pdf({
       format: 'A4',
