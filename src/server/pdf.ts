@@ -39,7 +39,17 @@ async function getLaunchOptions(): Promise<Parameters<typeof puppeteer.launch>[0
   return {
     executablePath: getChromePath(),
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    // --disable-dev-shm-usage: Docker's /dev/shm is tiny (64MB) and Chromium
+    //   crashes without this; use /tmp instead.
+    // --disable-gpu / --single-process: reduce memory so it survives small
+    //   (e.g. 512MB) instances.
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--single-process',
+    ],
   };
 }
 

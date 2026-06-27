@@ -38,8 +38,8 @@ async function startServer() {
               imgSrc: ["'self'", "data:", "blob:", "https:"],
               scriptSrc: ["'self'", "blob:"],
               workerSrc: ["'self'", "blob:"],
-              styleSrc: ["'self'", "'unsafe-inline'"],
-              fontSrc: ["'self'", "data:"],
+              styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+              fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
             },
           }
         : false,
