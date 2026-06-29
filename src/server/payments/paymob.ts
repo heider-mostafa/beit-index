@@ -1,53 +1,35 @@
 /**
- * Paymob Payment Gateway Integration
+ * Paymob Payment Gateway Integration — Intention API / Unified Checkout (Egypt)
  *
- * Production-ready implementation for Egypt.
- * Documentation: https://developers.paymob.com/egypt
+ * Flow:
+ *   1. createIntention() -> POST /v1/intention/ with `Authorization: Token <secret>`
+ *      returns { id, client_secret }
+ *   2. getCheckoutUrl(clientSecret) -> /unifiedcheckout/?publicKey=<pk>&clientSecret=<cs>
+ *   3. Customer pays on the hosted checkout; Paymob calls our notification_url
+ *      (webhook) and redirects to redirection_url. verifyHmac() validates both.
+ *
+ * Docs: https://developers.paymob.com/egypt
  */
 
 import crypto from 'crypto';
 
-const PAYMOB_API_BASE = 'https://accept.paymob.com/api';
+const PAYMOB_BASE = 'https://accept.paymob.com';
 
 interface PaymobConfig {
-  apiKey: string;
+  secretKey: string;
+  publicKey: string;
   integrationId: string;
-  iframeId: string;
   hmacSecret: string;
 }
 
-interface AuthResponse {
-  token: string;
-  profile: {
-    id: number;
-    user: {
-      id: number;
-      email: string;
-    };
-  };
-}
-
-interface OrderResponse {
-  id: number;
-  created_at: string;
-  delivery_needed: boolean;
-  merchant: {
-    id: number;
-  };
-  amount_cents: number;
-}
-
-interface PaymentKeyResponse {
-  token: string;
-}
-
-interface BillingData {
+export interface BillingData {
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
   city?: string;
   country?: string;
+  state?: string;
   street?: string;
   building?: string;
   floor?: string;
@@ -55,7 +37,7 @@ interface BillingData {
   postalCode?: string;
 }
 
-interface TransactionCallback {
+export interface TransactionCallback {
   obj: {
     id: number;
     pending: boolean;
@@ -71,6 +53,7 @@ interface TransactionCallback {
     has_parent_transaction: boolean;
     order: {
       id: number;
+      merchant_order_id?: string;
     };
     created_at: string;
     currency: string;
@@ -88,145 +71,137 @@ interface TransactionCallback {
 }
 
 function getConfig(): PaymobConfig {
-  const apiKey = process.env.PAYMOB_API_KEY;
+  const secretKey = process.env.PAYMOB_SECRET_KEY;
+  const publicKey = process.env.PAYMOB_PUBLIC_KEY;
   const integrationId = process.env.PAYMOB_INTEGRATION_ID;
-  const iframeId = process.env.PAYMOB_IFRAME_ID;
   const hmacSecret = process.env.PAYMOB_HMAC_SECRET;
 
-  if (!apiKey || !integrationId || !iframeId || !hmacSecret) {
+  if (!secretKey || !publicKey || !integrationId || !hmacSecret) {
     throw new Error(
-      'Missing Paymob configuration. Required env vars: PAYMOB_API_KEY, PAYMOB_INTEGRATION_ID, PAYMOB_IFRAME_ID, PAYMOB_HMAC_SECRET'
+      'Missing Paymob configuration. Required env vars: PAYMOB_SECRET_KEY, PAYMOB_PUBLIC_KEY, PAYMOB_INTEGRATION_ID, PAYMOB_HMAC_SECRET'
     );
   }
 
-  return { apiKey, integrationId, iframeId, hmacSecret };
+  return { secretKey, publicKey, integrationId, hmacSecret };
+}
+
+interface InitiateOptions {
+  currency?: string;
+  items?: Array<{ name: string; amount: number; description?: string; quantity?: number }>;
+  customer?: { firstName: string; lastName: string; email: string };
+  notificationUrl?: string;
+  redirectionUrl?: string;
 }
 
 /**
- * Step 1: Authenticate with Paymob to get access token
+ * Create a payment intention. `merchantOrderId` is our own unique reference
+ * (e.g. the payment/purchase row id) — Paymob echoes it back on the webhook as
+ * obj.order.merchant_order_id, which is how we match the callback to our record.
  */
-export async function authenticate(): Promise<string> {
-  const config = getConfig();
-
-  const response = await fetch(`${PAYMOB_API_BASE}/auth/tokens`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ api_key: config.apiKey }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Paymob authentication failed: ${error}`);
-  }
-
-  const data: AuthResponse = await response.json();
-  return data.token;
-}
-
-/**
- * Step 2: Register an order with Paymob
- */
-export async function registerOrder(
-  authToken: string,
+export async function createIntention(
   amountCents: number,
   merchantOrderId: string,
-  currency: string = 'EGP'
-): Promise<number> {
-  const response = await fetch(`${PAYMOB_API_BASE}/ecommerce/orders`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      auth_token: authToken,
-      delivery_needed: false,
-      amount_cents: amountCents,
-      currency,
-      merchant_order_id: merchantOrderId,
-      items: [],
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Paymob order registration failed: ${error}`);
-  }
-
-  const data: OrderResponse = await response.json();
-  return data.id;
-}
-
-/**
- * Step 3: Generate payment key for the order
- */
-export async function generatePaymentKey(
-  authToken: string,
-  orderId: number,
-  amountCents: number,
   billingData: BillingData,
-  currency: string = 'EGP'
-): Promise<string> {
+  options: InitiateOptions = {}
+): Promise<{ intentionId: string; clientSecret: string }> {
   const config = getConfig();
 
-  const response = await fetch(`${PAYMOB_API_BASE}/acceptance/payment_keys`, {
+  const billing = {
+    first_name: billingData.firstName || 'NA',
+    last_name: billingData.lastName || 'NA',
+    email: billingData.email || 'na@example.com',
+    phone_number: billingData.phone || '+201000000000',
+    city: billingData.city || 'Cairo',
+    country: billingData.country || 'EG',
+    state: billingData.state || 'NA',
+    street: billingData.street || 'NA',
+    building: billingData.building || 'NA',
+    floor: billingData.floor || 'NA',
+    apartment: billingData.apartment || 'NA',
+  };
+
+  const items =
+    options.items && options.items.length > 0
+      ? options.items.map((i) => ({
+          name: i.name,
+          amount: i.amount,
+          description: i.description || i.name,
+          quantity: i.quantity || 1,
+        }))
+      : [{ name: 'Beit Index', amount: amountCents, description: 'Beit Index payment', quantity: 1 }];
+
+  const body: Record<string, unknown> = {
+    amount: amountCents,
+    currency: options.currency || 'EGP',
+    payment_methods: [parseInt(config.integrationId, 10)],
+    special_reference: merchantOrderId,
+    items,
+    billing_data: billing,
+  };
+  if (options.customer) {
+    body.customer = {
+      first_name: options.customer.firstName,
+      last_name: options.customer.lastName,
+      email: options.customer.email,
+    };
+  }
+  if (options.notificationUrl) body.notification_url = options.notificationUrl;
+  if (options.redirectionUrl) body.redirection_url = options.redirectionUrl;
+
+  const response = await fetch(`${PAYMOB_BASE}/v1/intention/`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      auth_token: authToken,
-      amount_cents: amountCents,
-      expiration: 3600, // 1 hour
-      order_id: orderId,
-      billing_data: {
-        first_name: billingData.firstName || 'N/A',
-        last_name: billingData.lastName || 'N/A',
-        email: billingData.email || 'na@example.com',
-        phone_number: billingData.phone || '+201000000000',
-        city: billingData.city || 'Cairo',
-        country: billingData.country || 'EG',
-        street: billingData.street || 'N/A',
-        building: billingData.building || 'N/A',
-        floor: billingData.floor || 'N/A',
-        apartment: billingData.apartment || 'N/A',
-        postal_code: billingData.postalCode || '00000',
-        state: 'N/A',
-        shipping_method: 'N/A',
-      },
-      currency,
-      integration_id: parseInt(config.integrationId),
-      lock_order_when_paid: true,
-    }),
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Token ${config.secretKey}`,
+    },
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`Paymob payment key generation failed: ${error}`);
+    throw new Error(`Paymob intention creation failed: ${error}`);
   }
 
-  const data: PaymentKeyResponse = await response.json();
-  return data.token;
+  const data = await response.json();
+  return { intentionId: String(data.id), clientSecret: data.client_secret };
 }
 
 /**
- * Get iframe URL for payment
+ * Build the Unified Checkout URL the customer is redirected to.
  */
-export function getIframeUrl(paymentKey: string): string {
+export function getCheckoutUrl(clientSecret: string): string {
   const config = getConfig();
-  return `https://accept.paymob.com/api/acceptance/iframes/${config.iframeId}?payment_token=${paymentKey}`;
+  return `${PAYMOB_BASE}/unifiedcheckout/?publicKey=${config.publicKey}&clientSecret=${clientSecret}`;
 }
 
 /**
- * Verify HMAC signature from Paymob callback
- *
- * Paymob sends HMAC in the 'hmac' query parameter for GET callbacks
- * and in the request body for POST callbacks
+ * Full payment flow: create an intention and return the checkout URL.
  */
-export function verifyHmac(
-  callbackData: TransactionCallback,
-  receivedHmac: string
-): boolean {
+export async function initiatePayment(
+  amountCents: number,
+  merchantOrderId: string,
+  billingData: BillingData,
+  options: InitiateOptions = {}
+): Promise<{ intentionId: string; clientSecret: string; checkoutUrl: string }> {
+  const { intentionId, clientSecret } = await createIntention(
+    amountCents,
+    merchantOrderId,
+    billingData,
+    options
+  );
+  return { intentionId, clientSecret, checkoutUrl: getCheckoutUrl(clientSecret) };
+}
+
+/**
+ * Verify the HMAC signature Paymob sends with webhooks/redirects.
+ * Paymob sends the HMAC in the `hmac` query parameter; the body (or query for
+ * the redirect) carries the transaction object whose fields are concatenated in
+ * a fixed order and HMAC-SHA512'd with the merchant HMAC secret.
+ */
+export function verifyHmac(callbackData: TransactionCallback, receivedHmac: string): boolean {
   const config = getConfig();
   const obj = callbackData.obj;
 
-  // Concatenate values in the specific order Paymob expects
-  // See: https://docs.paymob.com/docs/transaction-webhooks
   const concatenatedString = [
     obj.amount_cents,
     obj.created_at,
@@ -258,55 +233,18 @@ export function verifyHmac(
 }
 
 /**
- * Full payment flow: authenticate, register order, get payment key
+ * Process a refund for a transaction. Uses the secret key for authentication.
  */
-export async function initiatePayment(
-  amountCents: number,
-  merchantOrderId: string,
-  billingData: BillingData
-): Promise<{
-  paymobOrderId: number;
-  paymentKey: string;
-  iframeUrl: string;
-}> {
-  // Step 1: Authenticate
-  const authToken = await authenticate();
+export async function refundTransaction(transactionId: number, amountCents: number): Promise<boolean> {
+  const config = getConfig();
 
-  // Step 2: Register order
-  const paymobOrderId = await registerOrder(authToken, amountCents, merchantOrderId);
-
-  // Step 3: Generate payment key
-  const paymentKey = await generatePaymentKey(
-    authToken,
-    paymobOrderId,
-    amountCents,
-    billingData
-  );
-
-  // Get iframe URL
-  const iframeUrl = getIframeUrl(paymentKey);
-
-  return {
-    paymobOrderId,
-    paymentKey,
-    iframeUrl,
-  };
-}
-
-/**
- * Process refund for a transaction
- */
-export async function refundTransaction(
-  transactionId: number,
-  amountCents: number
-): Promise<boolean> {
-  const authToken = await authenticate();
-
-  const response = await fetch(`${PAYMOB_API_BASE}/acceptance/void_refund/refund`, {
+  const response = await fetch(`${PAYMOB_BASE}/api/acceptance/void_refund/refund`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Token ${config.secretKey}`,
+    },
     body: JSON.stringify({
-      auth_token: authToken,
       transaction_id: transactionId,
       amount_cents: amountCents,
     }),
@@ -321,7 +259,7 @@ export async function refundTransaction(
 }
 
 /**
- * Check if Paymob is properly configured
+ * Whether Paymob is configured (used to gate payment endpoints).
  */
 export function isConfigured(): boolean {
   try {

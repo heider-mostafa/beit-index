@@ -176,9 +176,9 @@ export default function BankCart() {
 
       if (res.ok) {
         const data = await res.json();
-        // Redirect to Paymob iframe
-        if (data.iframeUrl) {
-          window.location.href = data.iframeUrl;
+        // Redirect to Paymob's Unified Checkout
+        if (data.checkoutUrl) {
+          window.location.href = data.checkoutUrl;
         }
       } else {
         const data = await res.json();

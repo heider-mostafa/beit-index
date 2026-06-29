@@ -18,7 +18,7 @@ Set these on the host (Production, and Preview if used):
 - `SUPABASE_SERVICE_ROLE_KEY`  (secret — server only)
 - `APP_URL` (e.g. `https://app.beitindex.com`)
 - `ALLOWED_ORIGINS` (comma-separated, for CORS in production)
-- `PAYMOB_API_KEY`, `PAYMOB_HMAC_SECRET`, `PAYMOB_IFRAME_ID`, `PAYMOB_INTEGRATION_ID`
+- `PAYMOB_SECRET_KEY`, `PAYMOB_PUBLIC_KEY`, `PAYMOB_INTEGRATION_ID`, `PAYMOB_HMAC_SECRET`
 - `GEMINI_API_KEY` (image classification on import)
 - `SENTRY_DSN` (optional, error tracking)
 - `INNGEST_DEV=0` and Inngest production keys (`INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`) — see Inngest below

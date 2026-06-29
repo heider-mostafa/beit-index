@@ -4276,33 +4276,38 @@ router.post('/bank/checkout/pay', authMiddleware, bankMiddleware, async (req: Au
 
     if (itemsError) throw itemsError;
 
-    // Initiate Paymob payment (same signature as the appraisal checkout)
+    // Initiate Paymob payment (Intention API). special_reference = purchase.id.
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
     const paymobResult = await paymob.initiatePayment(
       total,
       purchase.id,
       {
-        firstName: bankAccount.name || 'Bank',
+        firstName: (bankAccount.name as string) || 'Bank',
         lastName: 'Account',
         email: req.user!.email,
         phone: '+201000000000',
         city: 'Cairo',
         country: 'EG',
+      },
+      {
+        customer: { firstName: (bankAccount.name as string) || 'Bank', lastName: 'Account', email: req.user!.email },
+        notificationUrl: `${appUrl}/api/bank/checkout/callback`,
+        redirectionUrl: `${appUrl}/bank/reports`,
       }
     );
 
-    // Update purchase with Paymob order ID
+    // Store the intention id for reference (matching is via merchant_order_id).
     await supabase
       .from('bank_report_purchases')
       .update({
-        paymob_order_id: paymobResult.paymobOrderId.toString(),
+        paymob_order_id: paymobResult.intentionId,
         status: 'processing',
       })
       .eq('id', purchase.id);
 
     res.json({
       purchaseId: purchase.id,
-      paymobOrderId: paymobResult.paymobOrderId,
-      iframeUrl: paymobResult.iframeUrl,
+      checkoutUrl: paymobResult.checkoutUrl,
       total,
     });
   } catch (err) {
@@ -4327,31 +4332,34 @@ router.post('/bank/checkout/callback', async (req: Request, res: Response) => {
       }
     }
 
-    const {
-      success,
-      order: paymobOrderId,
-      id: transactionId,
-    } = req.query;
+    // This is the server-to-server webhook (notification_url). Match by our
+    // special_reference, which Paymob echoes as order.merchant_order_id.
+    const callbackData = req.body;
+    const merchantRef = callbackData.obj?.order?.merchant_order_id as string | undefined;
+    const success = callbackData.obj?.success === true;
+    const transactionId = callbackData.obj?.id?.toString();
 
-    // Find the purchase by Paymob order ID
+    if (!merchantRef) {
+      return res.status(400).json({ error: 'Missing merchant reference' });
+    }
+
     const { data: purchase, error: findError } = await supabase
       .from('bank_report_purchases')
       .select('*')
-      .eq('paymob_order_id', paymobOrderId)
+      .eq('id', merchantRef)
       .single();
 
     if (findError || !purchase) {
-      console.error('Purchase not found for order:', paymobOrderId);
+      console.error('Purchase not found for reference:', merchantRef);
       return res.status(404).json({ error: 'Purchase not found' });
     }
 
-    if (success === 'true') {
-      // Payment successful
+    if (success) {
       await supabase
         .from('bank_report_purchases')
         .update({
           status: 'completed',
-          paymob_transaction_id: transactionId as string,
+          paymob_transaction_id: transactionId,
           paid_at: new Date().toISOString(),
         })
         .eq('id', purchase.id);
@@ -4362,32 +4370,13 @@ router.post('/bank/checkout/callback', async (req: Request, res: Response) => {
         .delete()
         .eq('bank_account_id', purchase.bank_account_id);
 
-      // Redirect to success page
-      res.redirect(`/bank/reports?purchase=${purchase.id}&status=success`);
-    } else {
-      // Payment failed
-      await supabase
-        .from('bank_report_purchases')
-        .update({
-          status: 'failed',
-          paymob_transaction_id: transactionId as string,
-        })
-        .eq('id', purchase.id);
-
-      // Delete the purchase items (cleanup)
-      await supabase
-        .from('bank_purchase_items')
-        .delete()
-        .eq('purchase_id', purchase.id);
-
-      // Delete the failed purchase
-      await supabase
-        .from('bank_report_purchases')
-        .delete()
-        .eq('id', purchase.id);
-
-      res.redirect(`/bank/cart?status=failed`);
+      return res.json({ received: true });
     }
+
+    // Payment failed — clean up the pending purchase
+    await supabase.from('bank_purchase_items').delete().eq('purchase_id', purchase.id);
+    await supabase.from('bank_report_purchases').delete().eq('id', purchase.id);
+    return res.json({ received: true });
   } catch (err) {
     console.error('Error processing bank purchase callback:', err);
     res.status(500).json({ error: 'Failed to process callback' });
@@ -5322,10 +5311,12 @@ router.post('/payments/initiate', authMiddleware, async (req: AuthenticatedReque
     const firstName = nameParts[0] || 'N/A';
     const lastName = nameParts.slice(1).join(' ') || 'N/A';
 
-    // Initiate Paymob payment
+    // Initiate Paymob payment (Intention API). special_reference = payment.id,
+    // which Paymob echoes back on the webhook as order.merchant_order_id.
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
     const paymobResult = await paymob.initiatePayment(
-      job.total_price, // amount in piasters (already stored as cents/piasters)
-      payment.id, // use payment ID as merchant order ID
+      job.total_price, // amount in piasters
+      payment.id,
       {
         firstName,
         lastName,
@@ -5333,20 +5324,24 @@ router.post('/payments/initiate', authMiddleware, async (req: AuthenticatedReque
         phone: user?.phone || '+201000000000',
         city: 'Cairo',
         country: 'EG',
+      },
+      {
+        customer: { firstName, lastName, email: user?.email || req.user!.email },
+        notificationUrl: `${appUrl}/api/payments/paymob-callback`,
+        redirectionUrl: `${appUrl}/marketplace/jobs/${jobId}`,
       }
     );
 
-    // Store Paymob order ID for callback matching
+    // Store the intention id for reference (matching is via merchant_order_id).
     await supabase
       .from('payments')
-      .update({ paymob_order_id: paymobResult.paymobOrderId.toString() })
+      .update({ paymob_order_id: paymobResult.intentionId })
       .eq('id', payment.id);
 
     res.json({
       payment,
       paymob: {
-        orderId: paymobResult.paymobOrderId,
-        iframeUrl: paymobResult.iframeUrl,
+        checkoutUrl: paymobResult.checkoutUrl,
       },
     });
   } catch (err) {
@@ -5376,24 +5371,25 @@ router.post('/payments/paymob-callback', async (req: Request, res: Response) => 
     }
 
     const transactionId = callbackData.obj?.id?.toString();
-    const orderId = callbackData.obj?.order?.id?.toString();
+    // Intention API echoes our special_reference (payment.id) here.
+    const merchantRef = callbackData.obj?.order?.merchant_order_id as string | undefined;
     const success = callbackData.obj?.success === true;
     const isRefunded = callbackData.obj?.is_refunded === true;
     const isVoided = callbackData.obj?.is_voided === true;
 
-    if (!orderId) {
-      return res.status(400).json({ error: 'Missing order ID' });
+    if (!merchantRef) {
+      return res.status(400).json({ error: 'Missing merchant reference' });
     }
 
-    // Find payment by Paymob order ID
+    // Find payment by our reference (special_reference == payment.id)
     const { data: payment } = await supabase
       .from('payments')
       .select('*')
-      .eq('paymob_order_id', orderId)
+      .eq('id', merchantRef)
       .single();
 
     if (!payment) {
-      console.error('Payment not found for Paymob order:', orderId);
+      console.error('Payment not found for Paymob reference:', merchantRef);
       return res.status(404).json({ error: 'Payment not found' });
     }
 

@@ -25,13 +25,13 @@ services:
         sync: false
       - key: GEMINI_API_KEY
         sync: false
-      - key: PAYMOB_API_KEY
+      - key: PAYMOB_SECRET_KEY
         sync: false
-      - key: PAYMOB_HMAC_SECRET
+      - key: PAYMOB_PUBLIC_KEY
         sync: false
       - key: PAYMOB_INTEGRATION_ID
         sync: false
-      - key: PAYMOB_IFRAME_ID
+      - key: PAYMOB_HMAC_SECRET
         sync: false
       - key: APP_URL
         sync: false

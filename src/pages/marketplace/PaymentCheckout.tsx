@@ -38,8 +38,7 @@ interface PaymentInitResponse {
     status: string;
   };
   paymob: {
-    orderId: number;
-    iframeUrl: string;
+    checkoutUrl: string;
   };
 }
 
@@ -157,8 +156,9 @@ export default function PaymentCheckout() {
         throw new Error((data as any).error || 'Failed to initiate payment');
       }
 
-      setPaymentUrl(data.paymob.iframeUrl);
-      setPaymentStatus('processing');
+      // Redirect to Paymob's Unified Checkout. After payment, Paymob returns the
+      // user to the job page (redirection_url) and notifies our webhook.
+      window.location.href = data.paymob.checkoutUrl;
     } catch (err) {
       console.error('Payment initiation failed:', err);
       setError((err as Error).message);
