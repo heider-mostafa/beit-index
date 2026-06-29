@@ -4681,31 +4681,39 @@ router.post('/jobs', authMiddleware, async (req: AuthenticatedRequest, res: Resp
     let assignedAppraiserId: string | null = null;
     let jobStatus: string;
 
-    // Direct Booking: specific appraiser selected
+    // Direct Booking: specific appraiser selected.
+    // The client sends the appraiser_profiles.id (public id); resolve it to the
+    // user, since assigned_appraiser_id and appraiser_pricing are keyed by users.id,
+    // and the verification status lives on appraiser_profiles.status.
     if (appraiserId) {
-      // Verify appraiser exists and is verified
-      const { data: appraiser } = await supabase
-        .from('users')
-        .select('id, profile_status, is_available_for_jobs')
+      const { data: appraiserProfile } = await supabase
+        .from('appraiser_profiles')
+        .select('user_id, status')
         .eq('id', appraiserId)
-        .eq('role', 'appraiser')
         .single();
 
-      if (!appraiser) {
+      if (!appraiserProfile) {
         return res.status(404).json({ error: 'Appraiser not found' });
       }
-      if (appraiser.profile_status !== 'verified') {
+      if (appraiserProfile.status !== 'verified') {
         return res.status(400).json({ error: 'Appraiser is not verified' });
       }
-      if (appraiser.is_available_for_jobs === false) {
+
+      const { data: appraiserUser } = await supabase
+        .from('users')
+        .select('id, is_available_for_jobs')
+        .eq('id', appraiserProfile.user_id)
+        .single();
+
+      if (appraiserUser?.is_available_for_jobs === false) {
         return res.status(400).json({ error: 'Appraiser is currently not accepting new jobs' });
       }
 
-      // Get appraiser's pricing for this property type and report kind
+      // Appraiser's pricing for this property type and report kind (keyed by user id)
       const { data: appraiserPricing } = await supabase
         .from('appraiser_pricing')
         .select('price')
-        .eq('appraiser_id', appraiserId)
+        .eq('appraiser_id', appraiserProfile.user_id)
         .eq('property_type', propertyType)
         .eq('report_kind', reportKind)
         .eq('is_active', true)
@@ -4715,7 +4723,7 @@ router.post('/jobs', authMiddleware, async (req: AuthenticatedRequest, res: Resp
         basePrice = appraiserPricing.price;
       }
 
-      assignedAppraiserId = appraiserId;
+      assignedAppraiserId = appraiserProfile.user_id;
       jobStatus = 'pending_acceptance';  // Awaiting appraiser acceptance
     } else {
       // Pool Booking: no specific appraiser, use platform pricing
