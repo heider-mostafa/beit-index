@@ -23,6 +23,8 @@ export const Navbar = () => {
       ? '/bank'
       : profile?.role === 'appraiser'
       ? '/dashboard'
+      : profile?.role === 'owner'
+      ? '/marketplace/jobs'
       : '/';
 
   // Close mobile menu on route change

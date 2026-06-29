@@ -216,6 +216,42 @@ function BankLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Owner / marketplace layout with navigation
+function MarketplaceLayout({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+
+  const navItems = [
+    { path: '/marketplace/jobs', label: 'My Appraisals' },
+    { path: '/marketplace/request', label: 'Request Appraisal' },
+  ];
+
+  return (
+    <div className="min-h-screen bg-cream-100">
+      <div className="bg-cream-50 border-b border-ink-100 px-5">
+        <div className="max-w-7xl mx-auto flex items-center gap-8 py-3">
+          <span className="text-[11px] font-medium text-ink-400 uppercase tracking-wider">Marketplace</span>
+          <div className="flex gap-6">
+            {navItems.map((item) => (
+              <a
+                key={item.path}
+                href={item.path}
+                className={`text-body-s font-medium transition-colors ${
+                  location.pathname === item.path
+                    ? 'text-emerald-600'
+                    : 'text-ink-400 hover:text-ink-600'
+                }`}
+              >
+                {item.label}
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -238,7 +274,7 @@ function PostAuthRedirect() {
 
   React.useEffect(() => {
     if (loading || !profile || !session?.access_token) return;
-    if (profile.role !== 'appraiser' && profile.role !== 'bank') return;
+    if (!['appraiser', 'bank', 'owner'].includes(profile.role)) return;
 
     if (!PUBLIC_LANDING_PATHS.includes(location.pathname)) {
       lastHandledPath.current = null;
@@ -249,9 +285,13 @@ function PostAuthRedirect() {
 
     const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
 
-    // Bank users: only pull off the auth pages; let them browse home freely.
+    // Bank/owner users: only pull off the auth pages; let them browse home freely.
     if (profile.role === 'bank') {
       if (isAuthPage) navigate('/bank');
+      return;
+    }
+    if (profile.role === 'owner') {
+      if (isAuthPage) navigate('/marketplace/jobs');
       return;
     }
 
@@ -512,7 +552,9 @@ function AppContent() {
             path="/marketplace/request"
             element={
               <ProtectedRoute>
-                <RequestAppraisalPage />
+                <MarketplaceLayout>
+                  <RequestAppraisalPage />
+                </MarketplaceLayout>
               </ProtectedRoute>
             }
           />
@@ -520,7 +562,9 @@ function AppContent() {
             path="/marketplace/jobs"
             element={
               <ProtectedRoute>
-                <MyJobsPage />
+                <MarketplaceLayout>
+                  <MyJobsPage />
+                </MarketplaceLayout>
               </ProtectedRoute>
             }
           />
@@ -528,7 +572,9 @@ function AppContent() {
             path="/marketplace/jobs/:id"
             element={
               <ProtectedRoute>
-                <JobDetailPage />
+                <MarketplaceLayout>
+                  <JobDetailPage />
+                </MarketplaceLayout>
               </ProtectedRoute>
             }
           />
@@ -536,7 +582,9 @@ function AppContent() {
             path="/marketplace/jobs/:id/payment"
             element={
               <ProtectedRoute>
-                <PaymentCheckoutPage />
+                <MarketplaceLayout>
+                  <PaymentCheckoutPage />
+                </MarketplaceLayout>
               </ProtectedRoute>
             }
           />

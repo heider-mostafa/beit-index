@@ -89,6 +89,8 @@ export const LoginPage = () => {
       }
     } else if (role === 'bank') {
       navigate('/bank');
+    } else if (role === 'owner') {
+      navigate('/marketplace/jobs');
     } else {
       navigate('/');
     }
@@ -301,7 +303,6 @@ export const SignupPage = () => {
   const [inviteEmail, setInviteEmail] = React.useState('');
   const [isBankInvite, setIsBankInvite] = React.useState(false);
   const [bankName, setBankName] = React.useState('');
-  const [showComingSoon, setShowComingSoon] = React.useState(false);
   const [showOtp, setShowOtp] = React.useState(false);
   const [otpCode, setOtpCode] = React.useState('');
   const [verifying, setVerifying] = React.useState(false);
@@ -354,6 +355,8 @@ export const SignupPage = () => {
         navigate('/admin/verifications');
       } else if (profile.role === 'bank') {
         navigate('/bank');
+      } else if (profile.role === 'owner') {
+        navigate('/marketplace/jobs');
       } else {
         navigate('/');
       }
@@ -362,13 +365,6 @@ export const SignupPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // For non-appraiser self-serve roles, show coming soon message.
-    // (Admin and bank arrive via invite, so they're exempt.)
-    if (!isInvite && !isBankInvite && role !== 'appraiser') {
-      setShowComingSoon(true);
-      return;
-    }
 
     setLoading(true);
     setError(null);
@@ -533,26 +529,6 @@ export const SignupPage = () => {
     );
   }
 
-  if (showComingSoon) {
-    return (
-      <div className="min-h-screen pt-32 pb-24 px-5 flex flex-col items-center justify-center">
-        <div className="w-full max-w-[400px] text-center">
-          <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-8">
-            <Check className="h-8 w-8 text-emerald-600" />
-          </div>
-          <h1 className="text-h2 text-ink-600 mb-4">Thanks for your interest!</h1>
-          <p className="text-body-m text-ink-400 mb-8">
-            The {role === 'owner' ? 'property owner' : 'bank'} portal is coming soon.
-            We'll notify you at <strong>{email}</strong> when it launches.
-          </p>
-          <Button onClick={() => setShowComingSoon(false)} variant="secondary">
-            Go back
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen pt-32 pb-24 px-5 flex flex-col items-center justify-center">
       <div className="w-full max-w-[380px]">
@@ -605,7 +581,7 @@ export const SignupPage = () => {
             <div className="space-y-4">
               <label className="eyebrow text-ink-300">{t('auth.signup.role')}</label>
               <div className="space-y-3">
-                {(['appraiser', 'owner', 'bank'] as const).map((r) => (
+                {(['appraiser', 'owner'] as const).map((r) => (
                   <label key={r} className="flex items-center gap-3 cursor-pointer group">
                     <div className="relative flex items-center justify-center">
                       <input
@@ -619,9 +595,6 @@ export const SignupPage = () => {
                     </div>
                     <span className="text-body-s text-ink-400 group-hover:text-ink-600 transition-colors">
                       {t(`auth.signup.roles.${r}`)}
-                      {r !== 'appraiser' && (
-                        <span className="text-ink-200 ml-2">(Coming soon)</span>
-                      )}
                     </span>
                   </label>
                 ))}
