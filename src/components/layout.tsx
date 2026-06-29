@@ -15,6 +15,16 @@ export const Navbar = () => {
   const navigate = useNavigate();
   const { user, profile, signOut } = useAuth();
 
+  // Where the navbar "Dashboard" link points, by role.
+  const dashboardPath =
+    profile?.role === 'admin'
+      ? '/admin/verifications'
+      : profile?.role === 'bank'
+      ? '/bank'
+      : profile?.role === 'appraiser'
+      ? '/dashboard'
+      : '/';
+
   // Close mobile menu on route change
   React.useEffect(() => {
     setIsMobileMenuOpen(false);
@@ -106,7 +116,7 @@ export const Navbar = () => {
             <>
               <NotificationCenter />
               <Link
-                to="/dashboard"
+                to={dashboardPath}
                 className="hidden sm:flex items-center gap-2 text-[13px] font-medium text-ink-600 hover:text-ink-800 transition-colors"
               >
                 <LayoutDashboard className="h-4 w-4" />
@@ -185,7 +195,7 @@ export const Navbar = () => {
               {user ? (
                 <div className="space-y-3">
                   <Link
-                    to="/dashboard"
+                    to={dashboardPath}
                     className="flex items-center gap-2 text-[15px] font-medium text-ink-600 hover:text-ink-800 transition-colors py-2"
                   >
                     <LayoutDashboard className="h-4 w-4" />

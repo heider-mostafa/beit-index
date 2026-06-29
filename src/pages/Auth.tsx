@@ -87,6 +87,8 @@ export const LoginPage = () => {
       } catch {
         navigate('/onboarding');
       }
+    } else if (role === 'bank') {
+      navigate('/bank');
     } else {
       navigate('/');
     }
@@ -286,6 +288,7 @@ export const SignupPage = () => {
   const { signUp, verifyOtp, resendOtp, signInWithGoogle, profile, loading: authLoading } = useAuth();
 
   const inviteToken = searchParams.get('invite');
+  const bankInviteToken = searchParams.get('bankInvite');
 
   const [name, setName] = React.useState('');
   const [email, setEmail] = React.useState('');
@@ -296,6 +299,8 @@ export const SignupPage = () => {
   const [error, setError] = React.useState<string | null>(null);
   const [isInvite, setIsInvite] = React.useState(false);
   const [inviteEmail, setInviteEmail] = React.useState('');
+  const [isBankInvite, setIsBankInvite] = React.useState(false);
+  const [bankName, setBankName] = React.useState('');
   const [showComingSoon, setShowComingSoon] = React.useState(false);
   const [showOtp, setShowOtp] = React.useState(false);
   const [otpCode, setOtpCode] = React.useState('');
@@ -322,6 +327,24 @@ export const SignupPage = () => {
     }
   }, [inviteToken]);
 
+  // Check bank invite token
+  React.useEffect(() => {
+    if (bankInviteToken) {
+      fetch(`/api/auth/validate-bank-invite/${bankInviteToken}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.valid) {
+            setIsBankInvite(true);
+            setEmail(data.email);
+            setBankName(data.bankName || '');
+          } else {
+            setError('This invite link is invalid or has expired.');
+          }
+        })
+        .catch(() => setError('Failed to validate invite link.'));
+    }
+  }, [bankInviteToken]);
+
   // Redirect if already logged in
   React.useEffect(() => {
     if (!authLoading && profile) {
@@ -329,6 +352,8 @@ export const SignupPage = () => {
         navigate('/onboarding');
       } else if (profile.role === 'admin') {
         navigate('/admin/verifications');
+      } else if (profile.role === 'bank') {
+        navigate('/bank');
       } else {
         navigate('/');
       }
@@ -338,8 +363,9 @@ export const SignupPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // For non-appraiser roles, show coming soon message
-    if (!isInvite && role !== 'appraiser') {
+    // For non-appraiser self-serve roles, show coming soon message.
+    // (Admin and bank arrive via invite, so they're exempt.)
+    if (!isInvite && !isBankInvite && role !== 'appraiser') {
       setShowComingSoon(true);
       return;
     }
@@ -347,7 +373,7 @@ export const SignupPage = () => {
     setLoading(true);
     setError(null);
 
-    const userRole = isInvite ? 'admin' : role;
+    const userRole = isInvite ? 'admin' : isBankInvite ? 'bank' : role;
 
     const result = await signUp(email, password, name, userRole as UserRole);
 
@@ -378,6 +404,7 @@ export const SignupPage = () => {
             fullName: name,
             role: userRole,
             inviteToken,
+            bankInviteToken,
           }),
         });
 
@@ -530,7 +557,7 @@ export const SignupPage = () => {
     <div className="min-h-screen pt-32 pb-24 px-5 flex flex-col items-center justify-center">
       <div className="w-full max-w-[380px]">
         <h1 className="text-h2 text-ink-600 mb-12 text-center">
-          {isInvite ? 'Accept admin invite' : t('auth.signup.title')}
+          {isInvite ? 'Accept admin invite' : isBankInvite ? 'Accept bank invite' : t('auth.signup.title')}
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-8 mb-12">
@@ -547,11 +574,11 @@ export const SignupPage = () => {
             label={t('auth.login.email')}
             type="email"
             value={email}
-            onChange={(e) => !isInvite && setEmail(e.target.value)}
+            onChange={(e) => !isInvite && !isBankInvite && setEmail(e.target.value)}
             placeholder="ahmed@example.com"
             required
-            disabled={isInvite}
-            className={isInvite ? 'text-ink-300' : ''}
+            disabled={isInvite || isBankInvite}
+            className={isInvite || isBankInvite ? 'text-ink-300' : ''}
           />
 
           <div className="relative">
@@ -574,7 +601,7 @@ export const SignupPage = () => {
             <PasswordStrength password={password} />
           </div>
 
-          {!isInvite && (
+          {!isInvite && !isBankInvite && (
             <div className="space-y-4">
               <label className="eyebrow text-ink-300">{t('auth.signup.role')}</label>
               <div className="space-y-3">
@@ -605,6 +632,12 @@ export const SignupPage = () => {
           {isInvite && (
             <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-sm text-[13px] text-emerald-800">
               You've been invited to join as an admin.
+            </div>
+          )}
+
+          {isBankInvite && (
+            <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-sm text-[13px] text-emerald-800">
+              You've been invited to join{bankName ? ` ${bankName}` : ' a bank'} on Beit Index.
             </div>
           )}
 

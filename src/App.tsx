@@ -22,6 +22,7 @@ import { ReportsPage } from '@/src/pages/Reports';
 import { ReportEditorPage } from '@/src/pages/reports/ReportEditor';
 import { VerificationsPage } from '@/src/pages/admin/Verifications';
 import { InvitesPage } from '@/src/pages/admin/Invites';
+import { BanksPage } from '@/src/pages/admin/Banks';
 import { AuditLogPage } from '@/src/pages/admin/AuditLog';
 import { BacklogUploadPage, ReviewQueuePage, ReviewDetailPage } from '@/src/pages/backlog';
 
@@ -144,6 +145,7 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     { path: '/admin/verifications', label: 'Verifications' },
+    { path: '/admin/banks', label: 'Banks' },
     { path: '/admin/invites', label: 'Invites' },
     { path: '/admin/audit-log', label: 'Audit Log' },
   ];
@@ -154,6 +156,44 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
       <div className="bg-cream-50 border-b border-ink-100 px-5">
         <div className="max-w-7xl mx-auto flex items-center gap-8 py-3">
           <span className="text-[11px] font-medium text-ink-400 uppercase tracking-wider">Admin</span>
+          <div className="flex gap-6">
+            {navItems.map((item) => (
+              <a
+                key={item.path}
+                href={item.path}
+                className={`text-body-s font-medium transition-colors ${
+                  location.pathname === item.path
+                    ? 'text-emerald-600'
+                    : 'text-ink-400 hover:text-ink-600'
+                }`}
+              >
+                {item.label}
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// Bank portal layout with navigation
+function BankLayout({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+
+  const navItems = [
+    { path: '/bank', label: 'Dashboard' },
+    { path: '/bank/marketplace', label: 'Marketplace' },
+    { path: '/bank/cart', label: 'Cart' },
+    { path: '/bank/reports', label: 'Purchased Reports' },
+  ];
+
+  return (
+    <div className="min-h-screen bg-cream-100">
+      <div className="bg-cream-50 border-b border-ink-100 px-5">
+        <div className="max-w-7xl mx-auto flex items-center gap-8 py-3">
+          <span className="text-[11px] font-medium text-ink-400 uppercase tracking-wider">Bank</span>
           <div className="flex gap-6">
             {navItems.map((item) => (
               <a
@@ -198,7 +238,7 @@ function PostAuthRedirect() {
 
   React.useEffect(() => {
     if (loading || !profile || !session?.access_token) return;
-    if (profile.role !== 'appraiser') return;
+    if (profile.role !== 'appraiser' && profile.role !== 'bank') return;
 
     if (!PUBLIC_LANDING_PATHS.includes(location.pathname)) {
       lastHandledPath.current = null;
@@ -208,6 +248,12 @@ function PostAuthRedirect() {
     lastHandledPath.current = location.pathname;
 
     const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
+
+    // Bank users: only pull off the auth pages; let them browse home freely.
+    if (profile.role === 'bank') {
+      if (isAuthPage) navigate('/bank');
+      return;
+    }
 
     fetch('/api/onboarding/status', {
       headers: { Authorization: `Bearer ${session.access_token}` },
@@ -369,6 +415,16 @@ function AppContent() {
             }
           />
           <Route
+            path="/admin/banks"
+            element={
+              <AdminRoute>
+                <AdminLayout>
+                  <BanksPage />
+                </AdminLayout>
+              </AdminRoute>
+            }
+          />
+          <Route
             path="/admin/invites"
             element={
               <AdminRoute>
@@ -391,10 +447,22 @@ function AppContent() {
 
           {/* Bank protected routes */}
           <Route
+            path="/bank"
+            element={
+              <BankRoute>
+                <BankLayout>
+                  <AnalyticsDashboardPage />
+                </BankLayout>
+              </BankRoute>
+            }
+          />
+          <Route
             path="/bank/analytics"
             element={
               <BankRoute>
-                <AnalyticsDashboardPage />
+                <BankLayout>
+                  <AnalyticsDashboardPage />
+                </BankLayout>
               </BankRoute>
             }
           />
@@ -402,7 +470,9 @@ function AppContent() {
             path="/bank/marketplace"
             element={
               <BankRoute>
-                <BankMarketplace />
+                <BankLayout>
+                  <BankMarketplace />
+                </BankLayout>
               </BankRoute>
             }
           />
@@ -410,7 +480,9 @@ function AppContent() {
             path="/bank/cart"
             element={
               <BankRoute>
-                <BankCart />
+                <BankLayout>
+                  <BankCart />
+                </BankLayout>
               </BankRoute>
             }
           />
@@ -418,7 +490,9 @@ function AppContent() {
             path="/bank/reports"
             element={
               <BankRoute>
-                <PurchasedReports />
+                <BankLayout>
+                  <PurchasedReports />
+                </BankLayout>
               </BankRoute>
             }
           />
@@ -426,7 +500,9 @@ function AppContent() {
             path="/bank/reports/:listingId"
             element={
               <BankRoute>
-                <ReportViewer />
+                <BankLayout>
+                  <ReportViewer />
+                </BankLayout>
               </BankRoute>
             }
           />
