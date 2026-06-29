@@ -6036,6 +6036,61 @@ router.put('/appraiser/availability', authMiddleware, appraiserMiddleware, async
   }
 });
 
+// Get the logged-in appraiser's editable profile (images), with signed preview URLs
+router.get('/appraiser/profile', authMiddleware, appraiserMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const supabase = getServiceClient();
+    const { data: profile, error } = await supabase
+      .from('appraiser_profiles')
+      .select('full_name_en, status, photo_url, signature_url, stamp_url')
+      .eq('user_id', req.user!.id)
+      .single();
+
+    if (error || !profile) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+
+    res.json({
+      fullName: profile.full_name_en,
+      status: profile.status,
+      photoUrl: await signAppraiserPhoto(profile.photo_url),
+      signatureUrl: await signAppraiserPhoto(profile.signature_url),
+      stampUrl: await signAppraiserPhoto(profile.stamp_url),
+    });
+  } catch (err) {
+    console.error('Error fetching appraiser profile:', err);
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
+// Update the logged-in appraiser's profile images (photo / signature / stamp).
+// Each value is a storage path in the appraiser-assets bucket (from /upload/get-url).
+router.patch('/appraiser/profile', authMiddleware, appraiserMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  const { photoStoragePath, signatureStoragePath, stampStoragePath } = req.body;
+  try {
+    const supabase = getServiceClient();
+    const updates: Record<string, string> = {};
+    if (typeof photoStoragePath === 'string') updates.photo_url = photoStoragePath;
+    if (typeof signatureStoragePath === 'string') updates.signature_url = signatureStoragePath;
+    if (typeof stampStoragePath === 'string') updates.stamp_url = stampStoragePath;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'Nothing to update' });
+    }
+
+    const { error } = await supabase
+      .from('appraiser_profiles')
+      .update(updates)
+      .eq('user_id', req.user!.id);
+
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error updating appraiser profile:', err);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
 // Get appraiser stats
 router.get('/appraiser/stats', authMiddleware, appraiserMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {

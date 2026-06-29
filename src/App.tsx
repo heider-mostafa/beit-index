@@ -41,6 +41,7 @@ import AppraiserJobsDashboard from '@/src/pages/appraiser/JobsDashboard';
 import AppraiserJobDetail from '@/src/pages/appraiser/JobDetail';
 import DeliverReportPage from '@/src/pages/appraiser/DeliverReport';
 import AppraiserPricingSettings from '@/src/pages/appraiser/PricingSettings';
+import { ProfileSettingsPage } from '@/src/pages/appraiser/ProfileSettings';
 
 // Scroll to top on route change
 function ScrollToTop() {
@@ -439,6 +440,14 @@ function AppContent() {
             element={
               <AppraiserRoute>
                 <AppraiserPricingSettings />
+              </AppraiserRoute>
+            }
+          />
+          <Route
+            path="/appraiser/profile"
+            element={
+              <AppraiserRoute>
+                <ProfileSettingsPage />
               </AppraiserRoute>
             }
           />

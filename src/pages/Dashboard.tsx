@@ -262,6 +262,12 @@ export function DashboardPage() {
                 </Button>
               </Link>
             )}
+            <Link to="/appraiser/profile">
+              <Button variant="secondary" className="flex items-center gap-2">
+                <Edit3 className="h-4 w-4" />
+                {t('dashboard.editProfile', 'Edit Profile')}
+              </Button>
+            </Link>
             <Link to="/appraiser/jobs">
               <Button variant="secondary" className="flex items-center gap-2">
                 <Briefcase className="h-4 w-4" />
