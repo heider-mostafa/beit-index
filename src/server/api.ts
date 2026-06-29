@@ -4803,7 +4803,7 @@ router.post('/jobs', authMiddleware, async (req: AuthenticatedRequest, res: Resp
     res.status(201).json({ job, message });
   } catch (err) {
     console.error('Error creating job request:', err);
-    res.status(500).json({ error: 'Failed to create job request' });
+    res.status(500).json({ error: 'Failed to create job request', detail: (err as Error).message });
   }
 });
 
