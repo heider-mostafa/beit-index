@@ -326,7 +326,7 @@ router.get('/health', (req, res) => {
 
 // Create user profile after signup (called from frontend)
 router.post('/auth/create-profile', async (req: Request, res: Response) => {
-  const { authId, email, fullName, role, inviteToken } = req.body;
+  const { authId, email, fullName, role, inviteToken, bankInviteToken } = req.body;
 
   if (!authId || !email || !fullName) {
     return res.status(400).json({ error: 'Missing required fields' });
@@ -341,6 +341,23 @@ router.post('/auth/create-profile', async (req: Request, res: Response) => {
     // set directly via the request body — it is granted solely by consuming a
     // valid invite token below.
     let userRole = ['owner', 'appraiser', 'bank'].includes(role) ? role : 'owner';
+
+    // Bank invite: grants the 'bank' role and links the user to a bank account.
+    let bankInvite: { id: string; bank_account_id: string; bank_role: string; invited_by: string } | null = null;
+    if (bankInviteToken) {
+      const { data: bi } = await supabase
+        .from('bank_invites')
+        .select('id, bank_account_id, bank_role, invited_by, email')
+        .eq('token', hashToken(bankInviteToken))
+        .is('consumed_at', null)
+        .gt('expires_at', new Date().toISOString())
+        .single();
+      if (bi && bi.email.toLowerCase() === email.toLowerCase()) {
+        userRole = 'bank';
+        bankInvite = bi;
+      }
+    }
+
     if (inviteToken) {
       // Hash the incoming token to compare against stored hash
       const hashedInviteToken = hashToken(inviteToken);
@@ -402,6 +419,25 @@ router.post('/auth/create-profile', async (req: Request, res: Response) => {
       return res.status(500).json({ error: 'Failed to create user profile' });
     }
 
+    // Link the user to the bank account and consume the bank invite.
+    if (bankInvite) {
+      await supabase
+        .from('bank_users')
+        .upsert(
+          {
+            user_id: data.id,
+            bank_account_id: bankInvite.bank_account_id,
+            role: bankInvite.bank_role || 'viewer',
+          },
+          { onConflict: 'user_id,bank_account_id', ignoreDuplicates: true }
+        );
+
+      await supabase
+        .from('bank_invites')
+        .update({ consumed_at: new Date().toISOString(), consumed_by: data.id })
+        .eq('id', bankInvite.id);
+    }
+
     // Ensure an onboarding draft exists for appraisers. ignoreDuplicates keeps
     // any in-progress draft intact on repeat calls.
     if (userRole === 'appraiser') {
@@ -450,6 +486,36 @@ router.get('/auth/validate-invite/:token', async (req: Request, res: Response) =
     res.json({ email: invite.email, valid: true });
   } catch (err) {
     console.error('Validate invite error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Validate a bank invite token (public). Uses the service client since bank_invites
+// is admin-only under RLS.
+router.get('/auth/validate-bank-invite/:token', async (req: Request, res: Response) => {
+  const { token } = req.params;
+
+  try {
+    const supabase = getServiceClient();
+    const { data: invite, error } = await supabase
+      .from('bank_invites')
+      .select('email, expires_at, bank_accounts!inner(name, name_ar)')
+      .eq('token', hashToken(token))
+      .is('consumed_at', null)
+      .gt('expires_at', new Date().toISOString())
+      .single();
+
+    if (error || !invite) {
+      return res.status(404).json({ error: 'Invalid or expired invite' });
+    }
+
+    const bank = (Array.isArray(invite.bank_accounts) ? invite.bank_accounts[0] : invite.bank_accounts) as
+      | { name: string; name_ar: string | null }
+      | undefined;
+
+    res.json({ email: invite.email, bankName: bank?.name || null, valid: true });
+  } catch (err) {
+    console.error('Validate bank invite error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -1372,6 +1438,184 @@ router.delete('/admin/invites/:id', authMiddleware, adminMiddleware, async (req:
   } catch (err) {
     console.error('Error revoking invite:', err);
     res.status(500).json({ error: 'Failed to revoke invite' });
+  }
+});
+
+// ============================================================================
+// ADMIN: BANK MANAGEMENT
+// ============================================================================
+
+// List bank accounts (with member counts)
+router.get('/admin/banks', authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const supabase = getServiceClient();
+    const { data: banks, error } = await supabase
+      .from('bank_accounts')
+      .select('*, bank_users(count)')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json({ banks: banks || [] });
+  } catch (err) {
+    console.error('Error listing banks:', err);
+    res.status(500).json({ error: 'Failed to list banks' });
+  }
+});
+
+// Create a bank account
+router.post('/admin/banks', authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  const {
+    name,
+    nameAr,
+    contactEmail,
+    contactPhone,
+    subscriptionTier,
+    monthlyQueryLimit,
+    address,
+    taxId,
+  } = req.body;
+
+  if (!name || !contactEmail) {
+    return res.status(400).json({ error: 'Bank name and contact email are required' });
+  }
+
+  try {
+    const supabase = getServiceClient();
+    const { data, error } = await supabase
+      .from('bank_accounts')
+      .insert({
+        name,
+        name_ar: nameAr || null,
+        contact_email: contactEmail,
+        contact_phone: contactPhone || null,
+        subscription_tier: subscriptionTier || 'trial',
+        monthly_query_limit: monthlyQueryLimit || 100,
+        address: address || null,
+        tax_id: taxId || null,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json({ bank: data });
+  } catch (err) {
+    console.error('Error creating bank:', err);
+    res.status(500).json({ error: 'Failed to create bank' });
+  }
+});
+
+// Get one bank account with members and pending invites
+router.get('/admin/banks/:id', authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  try {
+    const supabase = getServiceClient();
+
+    const { data: bank, error } = await supabase
+      .from('bank_accounts')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error || !bank) {
+      return res.status(404).json({ error: 'Bank not found' });
+    }
+
+    const { data: members } = await supabase
+      .from('bank_users')
+      .select('id, role, created_at, users!inner(email, full_name)')
+      .eq('bank_account_id', id);
+
+    const { data: invites } = await supabase
+      .from('bank_invites')
+      .select('id, email, bank_role, expires_at, consumed_at, created_at')
+      .eq('bank_account_id', id)
+      .is('consumed_at', null)
+      .order('created_at', { ascending: false });
+
+    res.json({ bank, members: members || [], invites: invites || [] });
+  } catch (err) {
+    console.error('Error fetching bank:', err);
+    res.status(500).json({ error: 'Failed to fetch bank' });
+  }
+});
+
+// Invite a user to a bank account
+router.post('/admin/banks/:id/invite', authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  const { email, bankRole } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  try {
+    const supabase = getServiceClient();
+
+    // Bank must exist
+    const { data: bank } = await supabase.from('bank_accounts').select('id').eq('id', id).single();
+    if (!bank) {
+      return res.status(404).json({ error: 'Bank not found' });
+    }
+
+    // No duplicate pending invite for this email + bank
+    const { data: existing } = await supabase
+      .from('bank_invites')
+      .select('id')
+      .eq('email', email.toLowerCase())
+      .eq('bank_account_id', id)
+      .is('consumed_at', null)
+      .gt('expires_at', new Date().toISOString())
+      .single();
+
+    if (existing) {
+      return res.status(400).json({ error: 'This email already has a pending invite for this bank' });
+    }
+
+    const rawToken = uuidv4();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    const { data, error } = await supabase
+      .from('bank_invites')
+      .insert({
+        email: email.toLowerCase(),
+        token: hashToken(rawToken),
+        bank_account_id: id,
+        bank_role: ['viewer', 'analyst', 'admin'].includes(bankRole) ? bankRole : 'viewer',
+        invited_by: req.user!.id,
+        expires_at: expiresAt.toISOString(),
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      invite: data,
+      inviteUrl: `${process.env.APP_URL || 'http://localhost:3000'}/signup?bankInvite=${rawToken}`,
+    });
+  } catch (err) {
+    console.error('Error creating bank invite:', err);
+    res.status(500).json({ error: 'Failed to create bank invite' });
+  }
+});
+
+// Revoke a bank invite
+router.delete('/admin/bank-invites/:id', authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  try {
+    const supabase = getServiceClient();
+    const { error } = await supabase
+      .from('bank_invites')
+      .delete()
+      .eq('id', id)
+      .is('consumed_at', null);
+
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error revoking bank invite:', err);
+    res.status(500).json({ error: 'Failed to revoke bank invite' });
   }
 });
 
