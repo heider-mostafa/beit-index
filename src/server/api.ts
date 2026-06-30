@@ -4865,8 +4865,7 @@ router.get('/jobs/:id', authMiddleware, async (req: AuthenticatedRequest, res: R
         districts(id, name_en, name_ar),
         compounds(id, name),
         client:users!job_requests_client_id_fkey(id, full_name, email),
-        appraiser:users!job_requests_assigned_appraiser_id_fkey(id, full_name, email),
-        delivered_report:reports(id, status, final_value)
+        appraiser:users!job_requests_assigned_appraiser_id_fkey(id, full_name, email)
       `)
       .eq('id', id)
       .single();
@@ -4885,7 +4884,7 @@ router.get('/jobs/:id', authMiddleware, async (req: AuthenticatedRequest, res: R
     res.json({ job });
   } catch (err) {
     console.error('Error fetching job:', err);
-    res.status(500).json({ error: 'Failed to fetch job' });
+    res.status(500).json({ error: 'Failed to fetch job', detail: (err as Error).message });
   }
 });
 
@@ -6643,7 +6642,7 @@ router.get('/jobs/:id/deliverables', authMiddleware, async (req: AuthenticatedRe
     // First verify user has access to this job
     const { data: job, error: jobError } = await supabase
       .from('job_requests')
-      .select('id, client_id, appraiser_id')
+      .select('id, client_id, assigned_appraiser_id')
       .eq('id', id)
       .single();
 
@@ -6652,7 +6651,7 @@ router.get('/jobs/:id/deliverables', authMiddleware, async (req: AuthenticatedRe
     }
 
     // Check if user is client or appraiser for this job
-    if (job.client_id !== req.user!.id && job.appraiser_id !== req.user!.id) {
+    if (job.client_id !== req.user!.id && job.assigned_appraiser_id !== req.user!.id) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
