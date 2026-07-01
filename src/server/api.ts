@@ -4818,7 +4818,7 @@ router.get('/jobs', authMiddleware, async (req: AuthenticatedRequest, res: Respo
         governorates(id, name_en, name_ar),
         cities(id, name_en, name_ar),
         districts(id, name_en, name_ar),
-        compounds(id, name),
+        compounds(id, name_en, name_ar),
         client:users!job_requests_client_id_fkey(id, full_name, email),
         appraiser:users!job_requests_assigned_appraiser_id_fkey(id, full_name, email)
       `)
@@ -4861,7 +4861,7 @@ router.get('/jobs/:id', authMiddleware, async (req: AuthenticatedRequest, res: R
         governorates(id, name_en, name_ar),
         cities(id, name_en, name_ar),
         districts(id, name_en, name_ar),
-        compounds(id, name),
+        compounds(id, name_en, name_ar),
         client:users!job_requests_client_id_fkey(id, full_name, email),
         appraiser:users!job_requests_assigned_appraiser_id_fkey(id, full_name, email)
       `)
