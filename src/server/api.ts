@@ -4724,7 +4724,7 @@ router.post('/jobs', authMiddleware, async (req: AuthenticatedRequest, res: Resp
       }
 
       assignedAppraiserId = appraiserProfile.user_id;
-      jobStatus = 'pending_acceptance';  // Awaiting appraiser acceptance
+      jobStatus = 'pending_payment';  // Instant Book: client pays upfront, no acceptance handshake
     } else {
       // Pool Booking: no specific appraiser, use platform pricing
       const { data: config } = await supabase
@@ -4796,9 +4796,7 @@ router.post('/jobs', authMiddleware, async (req: AuthenticatedRequest, res: Resp
 
     if (error) throw error;
 
-    const message = appraiserId
-      ? 'Request sent to appraiser. They will accept or decline your request.'
-      : 'Job created. Proceed to payment to submit to the appraiser pool.';
+    const message = 'Job created. Proceed to payment to confirm your booking.';
 
     res.status(201).json({ job, message });
   } catch (err) {
