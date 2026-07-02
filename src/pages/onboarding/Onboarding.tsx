@@ -160,7 +160,8 @@ export function OnboardingPage() {
 
         if (districtsRes.ok) {
           const data = await districtsRes.json();
-          setDistricts(data);
+          // The endpoint returns { districts: [...] }; tolerate a bare array too.
+          setDistricts(Array.isArray(data) ? data : data.districts || []);
         }
 
         if (typesRes.ok) {
