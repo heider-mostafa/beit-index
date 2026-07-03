@@ -4,6 +4,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button, Input, Badge } from '@/src/components/ui';
+import { SignaturePad } from '@/src/components/SignaturePad';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { getSupabaseBrowserClient } from '@/src/lib/supabase/browser';
 import type { OnboardingDraftData, AvailabilityStatus } from '@/src/lib/supabase/types';
@@ -1202,7 +1203,6 @@ function Step6FinalDetails({
   });
 
   const bioEn = watch('bioEn');
-  const signatureRef = React.useRef<HTMLInputElement>(null);
   const stampRef = React.useRef<HTMLInputElement>(null);
 
   const onFormSubmit = async (data: z.infer<typeof step6Schema>) => {
@@ -1280,51 +1280,19 @@ function Step6FinalDetails({
         </div>
       </div>
 
-      {/* Signature & Stamp uploads */}
-      <div className="grid grid-cols-2 gap-6">
-        <div>
-          <label className="eyebrow text-ink-300 mb-3 block">Signature</label>
-          <div
-            className={`border-2 border-dashed rounded-lg p-6 text-center ${
-              draftData.signatureStoragePath ? 'border-emerald-300 bg-emerald-50' : 'border-ink-200'
-            }`}
-          >
-            {draftData.signatureStoragePath ? (
-              <div className="flex items-center justify-center gap-2 text-emerald-700">
-                <Check className="h-4 w-4" />
-                <span className="text-[12px]">Uploaded</span>
-              </div>
-            ) : (
-              <>
-                <input
-                  ref={signatureRef}
-                  type="file"
-                  accept="image/png"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) onSignatureUpload(file);
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => signatureRef.current?.click()}
-                  disabled={uploadingSignature}
-                  className="text-ink-400"
-                >
-                  {uploadingSignature ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Upload className="h-4 w-4" />
-                  )}
-                </Button>
-                <p className="text-[11px] text-ink-300 mt-2">PNG preferred</p>
-              </>
-            )}
+      {/* Signature (draw pad) */}
+      <div>
+        <label className="eyebrow text-ink-300 mb-3 block">Signature</label>
+        {draftData.signatureStoragePath && (
+          <div className="flex items-center gap-2 text-emerald-700 mb-2 text-[12px]">
+            <Check className="h-4 w-4" /> Signature saved — draw again to replace it.
           </div>
-        </div>
+        )}
+        <SignaturePad onSave={onSignatureUpload} saving={uploadingSignature} />
+      </div>
 
+      {/* Stamp/Seal */}
+      <div className="max-w-xs">
         <div>
           <label className="eyebrow text-ink-300 mb-3 block">Stamp/Seal</label>
           <div

@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/src/components/ui';
 import { useAuth } from '@/src/contexts/AuthContext';
+import { SignaturePad } from '@/src/components/SignaturePad';
 import { Upload, Loader2, Image as ImageIcon, FileSignature, Stamp, Check, AlertCircle, ExternalLink, ArrowLeft } from 'lucide-react';
 
 interface ProfileData {
@@ -120,16 +121,34 @@ export function ProfileSettingsPage() {
             saved={saved === 'photoStoragePath'}
             onSelect={(file) => uploadAndSave(file, 'photoStoragePath')}
           />
-          <ImageUploader
-            label="Signature"
-            hint="Embedded on your appraisal report PDFs. PNG with transparent background works best."
-            accept="image/png,image/*"
-            url={profile?.signatureUrl ?? null}
-            icon={<FileSignature className="h-7 w-7 text-ink-200" />}
-            uploading={uploading === 'signatureStoragePath'}
-            saved={saved === 'signatureStoragePath'}
-            onSelect={(file) => uploadAndSave(file, 'signatureStoragePath')}
-          />
+          <div className="bg-cream-50 rounded-lg border-hairline p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <FileSignature className="h-5 w-5 text-ink-400" />
+              <h3 className="text-body-m font-medium text-ink-600">Signature</h3>
+              {saved === 'signatureStoragePath' && (
+                <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600">
+                  <Check className="h-3.5 w-3.5" /> Saved
+                </span>
+              )}
+            </div>
+            <p className="text-[12px] text-ink-400 mb-4">
+              Draw your signature below — it's embedded on your appraisal report PDFs.
+            </p>
+            {profile?.signatureUrl && (
+              <div className="mb-4">
+                <p className="text-[11px] text-ink-300 mb-1">Current signature</p>
+                <img
+                  src={profile.signatureUrl}
+                  alt="Current signature"
+                  className="h-16 object-contain border border-ink-100 rounded bg-white p-1"
+                />
+              </div>
+            )}
+            <SignaturePad
+              onSave={(file) => uploadAndSave(file, 'signatureStoragePath')}
+              saving={uploading === 'signatureStoragePath'}
+            />
+          </div>
           <ImageUploader
             label="Stamp / seal"
             hint="Appears next to your signature on report PDFs. PNG preferred."
