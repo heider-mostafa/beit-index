@@ -262,10 +262,15 @@ export async function refundTransaction(transactionId: number, amountCents: numb
  * Whether Paymob is configured (used to gate payment endpoints).
  */
 export function isConfigured(): boolean {
-  try {
-    getConfig();
-    return true;
-  } catch {
-    return false;
-  }
+  return missingConfigKeys().length === 0;
+}
+
+/**
+ * Names of the required Paymob env vars that are currently missing/empty.
+ * Returned (names only, never values) so ops can pinpoint what to set.
+ */
+export function missingConfigKeys(): string[] {
+  return (
+    ['PAYMOB_SECRET_KEY', 'PAYMOB_PUBLIC_KEY', 'PAYMOB_INTEGRATION_ID', 'PAYMOB_HMAC_SECRET'] as const
+  ).filter((k) => !process.env[k]);
 }

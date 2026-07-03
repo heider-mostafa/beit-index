@@ -5257,8 +5257,11 @@ router.post('/payments/initiate', authMiddleware, async (req: AuthenticatedReque
 
     // Verify Paymob is configured
     if (!paymob.isConfigured()) {
+      const missing = paymob.missingConfigKeys();
+      console.error('[payments/initiate] Paymob not configured. Missing env vars:', missing.join(', '));
       return res.status(503).json({
         error: 'Payment gateway not configured. Please contact support.',
+        missing,
       });
     }
 
@@ -5277,8 +5280,9 @@ router.post('/payments/initiate', authMiddleware, async (req: AuthenticatedReque
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    // Allow payment for draft (pool booking) or accepted (direct booking)
-    if (!['draft', 'accepted'].includes(job.status)) {
+    // Instant Book: jobs are created as pending_payment. Also allow re-initiating
+    // for draft/accepted (legacy) in case the client abandoned a prior attempt.
+    if (!['draft', 'accepted', 'pending_payment'].includes(job.status)) {
       return res.status(400).json({ error: 'Job is not ready for payment' });
     }
 
@@ -6752,8 +6756,7 @@ router.get('/jobs/:id/messages', authMiddleware, async (req: AuthenticatedReques
         created_at,
         sender:users!sender_id (
           id,
-          full_name,
-          avatar_url
+          full_name
         )
       `, { count: 'exact' })
       .eq('job_id', id)
@@ -6839,8 +6842,7 @@ router.post('/jobs/:id/messages', authMiddleware, async (req: AuthenticatedReque
         created_at,
         sender:users!sender_id (
           id,
-          full_name,
-          avatar_url
+          full_name
         )
       `)
       .single();

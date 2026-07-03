@@ -439,7 +439,7 @@ const AppraiserCard: React.FC<{ appraiser: FeaturedAppraiser; isAr: boolean }> =
   return (
     <Link to={`/appraisers/${appraiser.id}`} className="group h-full">
       <Card className="h-full flex flex-col group-hover:border-emerald-200 group-hover:shadow-lg transition-all">
-        <div className="aspect-square bg-ink-50 rounded-sm mb-6 overflow-hidden grayscale group-hover:grayscale-0 transition-all duration-500">
+        <div className="aspect-square bg-ink-50 rounded-sm mb-6 overflow-hidden transition-all duration-500">
           {appraiser.photo_url ? (
             <img
               src={appraiser.photo_url}

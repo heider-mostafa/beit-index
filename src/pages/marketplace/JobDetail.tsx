@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { JobConversation } from '@/src/components/JobConversation';
@@ -70,6 +70,7 @@ const PROPERTY_TYPE_LABELS: Record<string, { en: string; ar: string }> = {
 
 export default function JobDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { i18n } = useTranslation();
   const { session } = useAuth();
   const isRTL = i18n.language === 'ar';
@@ -112,6 +113,14 @@ export default function JobDetail() {
     }
     fetchJob();
   }, [id, session?.access_token]);
+
+  // Instant Book: a job awaiting payment belongs on the checkout page, not here.
+  // Send the client straight there so there's one clean, Shopify-style pay flow.
+  useEffect(() => {
+    if (job && (job.status === 'pending_payment' || job.status === 'accepted')) {
+      navigate(`/marketplace/jobs/${id}/payment`, { replace: true });
+    }
+  }, [job, id, navigate]);
 
   const handleComplete = async () => {
     if (!id || !session?.access_token) return;
@@ -346,29 +355,6 @@ export default function JobDetail() {
                 </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* Payment Required */}
-        {(job.status === 'pending_payment' || job.status === 'accepted') && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
-            <h2 className="text-lg font-semibold text-amber-900 mb-2">
-              {isRTL ? 'مطلوب الدفع' : 'Payment Required'}
-            </h2>
-            <p className="text-sm text-amber-700 mb-4">
-              {isRTL
-                ? 'يرجى إتمام الدفع للمتابعة مع طلب التقييم الخاص بك.'
-                : 'Please complete payment to proceed with your appraisal request.'}
-            </p>
-            <Link
-              to={`/marketplace/jobs/${id}/payment`}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium transition"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-              </svg>
-              {isRTL ? `ادفع ${formatCurrency(job.total_price)}` : `Pay ${formatCurrency(job.total_price)}`}
-            </Link>
           </div>
         )}
 

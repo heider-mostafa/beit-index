@@ -189,7 +189,7 @@ export const AppraiserProfilePage = () => {
           {/* Left Column */}
           <div className="lg:col-span-2">
             <div className="flex flex-col md:flex-row gap-8 mb-12">
-              <div className="w-40 h-40 shrink-0 bg-ink-50 rounded-sm overflow-hidden grayscale">
+              <div className="w-40 h-40 shrink-0 bg-ink-50 rounded-sm overflow-hidden">
                 {appraiser.photo_url ? (
                   <img src={appraiser.photo_url} alt={name} className="w-full h-full object-cover" />
                 ) : (

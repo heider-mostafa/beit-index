@@ -267,13 +267,9 @@ export default function RequestAppraisal() {
 
       const { job } = await res.json();
 
-      // For direct booking, redirect to job detail (appraiser needs to accept)
-      // For pool booking, redirect to payment
-      if (appraiserId) {
-        navigate(`/marketplace/jobs/${job.id}`);
-      } else {
-        navigate(`/marketplace/jobs/${job.id}/payment`);
-      }
+      // Instant Book: pay first. Go straight to the checkout page — no
+      // intermediate detail/acceptance step.
+      navigate(`/marketplace/jobs/${job.id}/payment`);
     } catch (err) {
       setError((err as Error).message);
     } finally {
