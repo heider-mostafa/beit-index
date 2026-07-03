@@ -5245,6 +5245,22 @@ router.post('/jobs/:id/complete', authMiddleware, async (req: AuthenticatedReque
 // PAYMOB PAYMENT INTEGRATION
 // ============================================================================
 
+// TEMP diagnostic: reports which Paymob env vars the running server sees.
+// Returns names + a boolean per key ONLY — never the secret values. Remove once
+// the Render config is confirmed working.
+router.get('/payments/config-check', (_req: Request, res: Response) => {
+  const keys = ['PAYMOB_SECRET_KEY', 'PAYMOB_PUBLIC_KEY', 'PAYMOB_INTEGRATION_ID', 'PAYMOB_HMAC_SECRET'];
+  const present: Record<string, boolean> = {};
+  for (const k of keys) present[k] = Boolean(process.env[k] && process.env[k]!.trim());
+  res.json({
+    configured: paymob.isConfigured(),
+    missing: paymob.missingConfigKeys(),
+    present,
+    // Any PAYMOB_* keys the server DOES have — helps spot a misspelled key name.
+    allPaymobKeysSeen: Object.keys(process.env).filter((k) => k.startsWith('PAYMOB')),
+  });
+});
+
 // Initiate payment for job
 router.post('/payments/initiate', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
