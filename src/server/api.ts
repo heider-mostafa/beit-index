@@ -4277,7 +4277,7 @@ router.post('/bank/checkout/pay', authMiddleware, bankMiddleware, async (req: Au
     if (itemsError) throw itemsError;
 
     // Initiate Paymob payment (Intention API). special_reference = purchase.id.
-    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    const appUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
     const paymobResult = await paymob.initiatePayment(
       total,
       purchase.id,
@@ -5338,7 +5338,11 @@ router.post('/payments/initiate', authMiddleware, async (req: AuthenticatedReque
 
     // Initiate Paymob payment (Intention API). special_reference = payment.id,
     // which Paymob echoes back on the webhook as order.merchant_order_id.
-    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    // Derive the public base URL from the request when APP_URL isn't set — both
+    // the redirect-back and the server-to-server webhook must be publicly
+    // reachable (localhost would silently break both). trust proxy is on, so
+    // req.protocol reflects X-Forwarded-Proto (https on Render).
+    const appUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
     const paymobResult = await paymob.initiatePayment(
       job.total_price, // amount in piasters
       payment.id,
