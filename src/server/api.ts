@@ -3502,7 +3502,7 @@ router.get('/analytics/price-trends', authMiddleware, bankMiddleware, async (req
         appraisal_date,
         property_type,
         district_id,
-        districts!inner(id, name, name_ar, city_id, cities!inner(id, name, governorate_id, governorates!inner(id, name)))
+        districts!inner(id, name_en, name_ar, city_id, cities!inner(id, name_en, governorate_id, governorates!inner(id, name_en)))
       `)
       .eq('is_provisional', false)
       .gte('appraisal_date', startDate.toISOString().split('T')[0])
@@ -3593,7 +3593,7 @@ router.get('/analytics/zone-breakdown', authMiddleware, bankMiddleware, async (r
         final_value,
         property_type,
         district_id,
-        districts!inner(id, name, name_ar, city_id, cities!inner(id, name, name_ar, governorate_id, governorates!inner(id, name, name_ar)))
+        districts!inner(id, name_en, name_ar, city_id, cities!inner(id, name_en, name_ar, governorate_id, governorates!inner(id, name_en, name_ar)))
       `)
       .eq('is_provisional', false)
       .gte('appraisal_date', startDate.toISOString().split('T')[0]);
@@ -3626,9 +3626,9 @@ router.get('/analytics/zone-breakdown', authMiddleware, bankMiddleware, async (r
       const districtRaw = r.districts as unknown;
       const district = (Array.isArray(districtRaw) ? districtRaw[0] : districtRaw) as {
         id: string;
-        name: string;
+        name_en: string;
         name_ar: string;
-        cities: { id: string; name: string; name_ar: string; governorates: { id: string; name: string; name_ar: string } } | Array<{ id: string; name: string; name_ar: string; governorates: { id: string; name: string; name_ar: string } | Array<{ id: string; name: string; name_ar: string }> }>;
+        cities: { id: string; name_en: string; name_ar: string; governorates: { id: string; name_en: string; name_ar: string } } | Array<{ id: string; name_en: string; name_ar: string; governorates: { id: string; name_en: string; name_ar: string } | Array<{ id: string; name_en: string; name_ar: string }> }>;
       };
       if (!district) return;
 
@@ -3638,9 +3638,9 @@ router.get('/analytics/zone-breakdown', authMiddleware, bankMiddleware, async (r
 
       if (!districtData[districtId] && city && governorate) {
         districtData[districtId] = {
-          district: { id: district.id, name: district.name, nameAr: district.name_ar },
-          city: { id: city.id, name: city.name, nameAr: city.name_ar },
-          governorate: { id: governorate.id, name: governorate.name, nameAr: governorate.name_ar },
+          district: { id: district.id, name: district.name_en, nameAr: district.name_ar },
+          city: { id: city.id, name: city.name_en, nameAr: city.name_ar },
+          governorate: { id: governorate.id, name: governorate.name_en, nameAr: governorate.name_ar },
           values: [],
           totalValue: 0,
         };
