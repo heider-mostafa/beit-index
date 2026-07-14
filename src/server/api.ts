@@ -4322,14 +4322,17 @@ router.post('/bank/checkout/callback', async (req: Request, res: Response) => {
     const supabase = getServiceClient();
 
     // Verify HMAC signature. Paymob posts the callback body and sends the hmac
-    // as a query param — same handling as the appraisal payment callback.
-    const hmacSecret = process.env.PAYMOB_HMAC_SECRET;
+    // as a query param. Fail closed: a missing hmac must reject, otherwise this
+    // callback — which marks the purchase paid — is trivially forgeable. (An
+    // unconfigured PAYMOB_HMAC_SECRET makes verifyHmac throw -> 500, also closed.)
     const receivedHmac = req.query.hmac as string | undefined;
-    if (hmacSecret && receivedHmac) {
-      if (!paymob.verifyHmac(req.body, receivedHmac)) {
-        console.error('Invalid HMAC signature for bank purchase callback');
-        return res.status(400).json({ error: 'Invalid signature' });
-      }
+    if (!receivedHmac) {
+      console.error('Bank purchase callback missing HMAC signature');
+      return res.status(400).json({ error: 'Missing HMAC signature' });
+    }
+    if (!paymob.verifyHmac(req.body, receivedHmac)) {
+      console.error('Invalid HMAC signature for bank purchase callback');
+      return res.status(401).json({ error: 'Invalid signature' });
     }
 
     // This is the server-to-server webhook (notification_url). Match by our

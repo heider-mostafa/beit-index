@@ -229,7 +229,10 @@ export function verifyHmac(callbackData: TransactionCallback, receivedHmac: stri
     .update(concatenatedString)
     .digest('hex');
 
-  return calculatedHmac === receivedHmac;
+  // Constant-time comparison to avoid leaking the expected HMAC via timing.
+  const expected = Buffer.from(calculatedHmac);
+  const received = Buffer.from(receivedHmac || '');
+  return expected.length === received.length && crypto.timingSafeEqual(expected, received);
 }
 
 /**
