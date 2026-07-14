@@ -613,26 +613,51 @@ function AppContent() {
 // OAuth callback handler
 function AuthCallback() {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, session } = useAuth();
 
   React.useEffect(() => {
     // Wait for auth to settle
-    const timer = setTimeout(() => {
-      if (profile) {
-        if (profile.role === 'admin') {
-          navigate('/admin/verifications');
-        } else if (profile.role === 'appraiser') {
-          navigate('/onboarding');
-        } else {
-          navigate('/');
-        }
-      } else {
+    const timer = setTimeout(async () => {
+      if (!profile) {
         navigate('/login');
+        return;
+      }
+      if (profile.role === 'admin') {
+        navigate('/admin/verifications');
+        return;
+      }
+      if (profile.role === 'bank') {
+        navigate('/bank');
+        return;
+      }
+      if (profile.role !== 'appraiser') {
+        navigate('/');
+        return;
+      }
+
+      // Appraiser: route by onboarding status. Never blindly send to
+      // /onboarding — a verified appraiser signing in via OAuth would otherwise
+      // be forced to restart onboarding on every callback login.
+      try {
+        const token = session?.access_token;
+        const res = token
+          ? await fetch('/api/onboarding/status', { headers: { Authorization: `Bearer ${token}` } })
+          : null;
+        const status = res && res.ok ? await res.json() : null;
+        if (!status || !status.hasProfile) {
+          navigate('/onboarding');
+        } else if (status.profileStatus === 'verified') {
+          navigate('/dashboard');
+        } else {
+          navigate('/onboarding/under-review');
+        }
+      } catch {
+        navigate('/onboarding');
       }
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [profile, navigate]);
+  }, [profile, session, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center">
