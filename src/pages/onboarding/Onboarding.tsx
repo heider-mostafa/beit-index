@@ -125,17 +125,40 @@ export function OnboardingPage() {
   const [uploadingSignature, setUploadingSignature] = React.useState(false);
   const [uploadingStamp, setUploadingStamp] = React.useState(false);
 
-  // Load draft on mount
+  // Guard + load draft on mount. A verified/submitted appraiser must never be
+  // shown the onboarding form. If an upstream router misfired — or a status
+  // check failed on login and fell back to /onboarding — this re-checks and
+  // bounces them to the right place before any draft is loaded or created.
   React.useEffect(() => {
     if (!session?.access_token) return;
+    let cancelled = false;
 
-    const loadDraft = async () => {
+    const init = async () => {
+      try {
+        const statusRes = await fetch('/api/onboarding/status', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (statusRes.ok) {
+          const status = await statusRes.json();
+          if (status.hasProfile) {
+            navigate(
+              status.profileStatus === 'verified' ? '/dashboard' : '/onboarding/under-review',
+              { replace: true }
+            );
+            return;
+          }
+        }
+      } catch (err) {
+        // Don't strand a genuinely-incomplete appraiser on a transient failure —
+        // fall through and let them continue their draft.
+        console.error('Error checking onboarding status:', err);
+      }
+
       try {
         const res = await fetch('/api/onboarding/draft', {
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
-
-        if (res.ok) {
+        if (res.ok && !cancelled) {
           const draft = await res.json();
           setCurrentStep(draft.current_step || 1);
           setDraftData(draft.draft_data || {});
@@ -144,11 +167,12 @@ export function OnboardingPage() {
       } catch (err) {
         console.error('Error loading draft:', err);
       }
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     };
 
-    loadDraft();
-  }, [session]);
+    init();
+    return () => { cancelled = true; };
+  }, [session, navigate]);
 
   // Load gazetteer data
   React.useEffect(() => {
