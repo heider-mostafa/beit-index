@@ -24,6 +24,7 @@ import { VerificationsPage } from '@/src/pages/admin/Verifications';
 import { InvitesPage } from '@/src/pages/admin/Invites';
 import { BanksPage } from '@/src/pages/admin/Banks';
 import { AuditLogPage } from '@/src/pages/admin/AuditLog';
+import { AreaRequestsPage } from '@/src/pages/admin/AreaRequests';
 import { BacklogUploadPage, ReviewQueuePage, ReviewDetailPage } from '@/src/pages/backlog';
 
 // Sprint 5 Pages
@@ -147,6 +148,7 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
   const navItems = [
     { path: '/admin/verifications', label: 'Verifications' },
     { path: '/admin/banks', label: 'Banks' },
+    { path: '/admin/area-requests', label: 'Area Requests' },
     { path: '/admin/invites', label: 'Invites' },
     { path: '/admin/audit-log', label: 'Audit Log' },
   ];
@@ -469,6 +471,16 @@ function AppContent() {
               <AdminRoute>
                 <AdminLayout>
                   <BanksPage />
+                </AdminLayout>
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/area-requests"
+            element={
+              <AdminRoute>
+                <AdminLayout>
+                  <AreaRequestsPage />
                 </AdminLayout>
               </AdminRoute>
             }

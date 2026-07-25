@@ -1479,6 +1479,61 @@ router.delete('/admin/invites/:id', authMiddleware, adminMiddleware, async (req:
 });
 
 // ============================================================================
+// ADMIN: SERVICE-AREA REQUESTS
+// ============================================================================
+
+// List service-area requests (appraisers flagging a missing coverage area)
+router.get('/admin/area-requests', authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const supabase = getServiceClient();
+
+    const { data, error } = await supabase
+      .from('service_area_requests')
+      .select(`
+        *,
+        requester:users!service_area_requests_user_id_fkey(full_name, email)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json({ requests: data || [] });
+  } catch (err) {
+    console.error('Error fetching area requests:', err);
+    res.status(500).json({ error: 'Failed to fetch area requests' });
+  }
+});
+
+// Resolve a service-area request (approve / reject, with an optional note)
+router.patch('/admin/area-requests/:id', authMiddleware, adminMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  const { status, adminNote } = req.body;
+
+  if (status !== 'approved' && status !== 'rejected' && status !== 'pending') {
+    return res.status(400).json({ error: 'status must be approved, rejected, or pending' });
+  }
+
+  try {
+    const supabase = getServiceClient();
+
+    const { data, error } = await supabase
+      .from('service_area_requests')
+      .update({
+        status,
+        admin_note: typeof adminNote === 'string' ? adminNote.slice(0, 500) : null,
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json({ request: data });
+  } catch (err) {
+    console.error('Error resolving area request:', err);
+    res.status(500).json({ error: 'Failed to resolve area request' });
+  }
+});
+
+// ============================================================================
 // ADMIN: BANK MANAGEMENT
 // ============================================================================
 
