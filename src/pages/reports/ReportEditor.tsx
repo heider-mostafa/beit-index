@@ -278,6 +278,12 @@ export function ReportEditorPage() {
 
   // Debounced save timer
   const saveTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  // Autosave concurrency control: prevent two PATCHes racing on the version
+  // (a save in flight while the debounce fires again would send a stale version
+  // and self-conflict with a 409). savingRef serializes; pendingSaveRef coalesces
+  // a save requested while one was already running.
+  const savingRef = React.useRef(false);
+  const pendingSaveRef = React.useRef(false);
 
   // Fetch report
   React.useEffect(() => {
@@ -314,10 +320,23 @@ export function ReportEditorPage() {
   }, [id, session?.access_token]);
 
   // Auto-save with debounce
-  const saveReport = React.useCallback(async () => {
+  const saveReport = React.useCallback(async (overrideVersion?: number) => {
     if (!report || !session?.access_token || report.status === 'finalized') return;
 
+    // Serialize saves: if one is already in flight, mark that another is needed
+    // and let the in-flight save flush it when it finishes. This prevents two
+    // autosaves racing with the same stale version (the "modified by another
+    // session" self-conflict).
+    if (savingRef.current) {
+      pendingSaveRef.current = true;
+      return;
+    }
+    savingRef.current = true;
     setSaving(true);
+    // When retrying after a version conflict we resend with the server's current
+    // version; conflictVersion carries that value out to the finally block.
+    let conflictVersion: number | null = null;
+    const isRetry = overrideVersion !== undefined;
     try {
       const res = await fetch(`/api/reports/${report.id}`, {
         method: 'PATCH',
@@ -326,7 +345,7 @@ export function ReportEditorPage() {
           Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          version: report.version,
+          version: overrideVersion ?? report.version,
           // Send all editable fields
           project_name: report.project_name,
           report_kind: report.report_kind,
@@ -386,7 +405,15 @@ export function ReportEditorPage() {
       if (!res.ok) {
         const data = await res.json();
         if (res.status === 409) {
-          setError(`Version conflict: ${data.message}`);
+          // Version conflict. On the first attempt this is almost always our own
+          // overlapping autosave, so resync to the server's version and retry
+          // once, keeping the appraiser's in-progress edits. If a retry still
+          // conflicts, it's a genuine external change — surface it.
+          if (!isRetry && typeof data.currentVersion === 'number') {
+            conflictVersion = data.currentVersion;
+          } else {
+            setError(`Version conflict: ${data.message}`);
+          }
           return;
         }
         throw new Error(data.error || 'Failed to save');
@@ -396,13 +423,35 @@ export function ReportEditorPage() {
       setReport((prev) => prev ? { ...prev, ...updated } : null);
       setHasUnsavedChanges(false);
       setLastSaved(new Date());
+      setError(null);
     } catch (err) {
       console.error('Save error:', err);
       setError('Failed to save changes');
     } finally {
+      savingRef.current = false;
       setSaving(false);
+      if (conflictVersion !== null) {
+        // Adopt the server's version locally, then retry with it explicitly so
+        // the retry isn't tripped up by the stale version in this closure.
+        const retryVersion = conflictVersion;
+        setReport((prev) => prev ? { ...prev, version: retryVersion } : prev);
+        // Retry via the ref so the next tick uses the freshest field data/version.
+        setTimeout(() => saveReportRef.current(retryVersion), 0);
+      } else if (pendingSaveRef.current) {
+        // Edits arrived while this save was in flight — flush them now, again via
+        // the ref so the flush picks up the latest report state, not this closure.
+        pendingSaveRef.current = false;
+        setTimeout(() => saveReportRef.current(), 0);
+      }
     }
   }, [report, session?.access_token]);
+
+  // Always points at the latest saveReport closure so deferred retries/flushes
+  // scheduled from inside a save use current report data instead of a stale one.
+  const saveReportRef = React.useRef(saveReport);
+  React.useEffect(() => {
+    saveReportRef.current = saveReport;
+  }, [saveReport]);
 
   // Trigger debounced save on field change
   const handleFieldChange = (field: string, value: unknown) => {
