@@ -586,9 +586,12 @@ router.get('/gazetteer/districts', async (req: Request, res: Response) => {
 router.get('/gazetteer/property-types', async (req: Request, res: Response) => {
   try {
     const supabase = getAnonClient();
+    // Only active types — retired ones (e.g. the old "Compound Unit") stay in
+    // the table so existing specialties/data survive, but must not be offered.
     const { data, error } = await supabase
       .from('property_types')
       .select('*')
+      .eq('is_active', true)
       .order('name_en');
 
     if (error) throw error;
@@ -676,6 +679,32 @@ router.patch('/onboarding/draft', authMiddleware, async (req: AuthenticatedReque
   }
 });
 
+// Request a service area that's missing from the gazetteer. Stored as a pending
+// suggestion for admin review; never enters matching data directly.
+router.post('/onboarding/request-area', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+
+  const { areaText } = req.body;
+  if (!areaText || typeof areaText !== 'string' || !areaText.trim()) {
+    return res.status(400).json({ error: 'areaText is required' });
+  }
+
+  try {
+    const supabase = getServiceClient();
+    const { error } = await supabase.from('service_area_requests').insert({
+      user_id: req.user.id,
+      area_text: areaText.trim().slice(0, 200),
+    });
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error creating area request:', err);
+    res.status(500).json({ error: 'Failed to submit area request' });
+  }
+});
+
 // Submit onboarding (convert draft to profile)
 router.post('/onboarding/submit', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   if (!req.user || req.user.role !== 'appraiser') {
@@ -730,6 +759,14 @@ router.post('/onboarding/submit', authMiddleware, async (req: AuthenticatedReque
         fra_license_number: draftData.fraLicenseNumber as string,
         fra_license_issue_date: draftData.fraLicenseIssueDate as string,
         fra_license_expiry_date: draftData.fraLicenseExpiryDate as string,
+        // Optional CBE accreditation (Central Bank of Egypt valuator register)
+        cbe_registration_number: (draftData.cbeRegistrationNumber as string) || null,
+        cbe_issue_date: (draftData.cbeIssueDate as string) || null,
+        cbe_expiry_date: (draftData.cbeExpiryDate as string) || null,
+        // Optional professional syndicate membership ("carnet")
+        syndicate_name: (draftData.syndicateName as string) || null,
+        syndicate_membership_number: (draftData.syndicateMembershipNumber as string) || null,
+        syndicate_expiry_date: (draftData.syndicateExpiryDate as string) || null,
         national_id_number: draftData.nationalIdNumber as string,
         bio_en: draftData.bioEn as string,
         bio_ar: (draftData.bioAr as string) || null,
@@ -1933,6 +1970,7 @@ router.post('/reports', authMiddleware, async (req: AuthenticatedRequest, res: R
       .from('properties')
       .insert({
         property_type: propertyData.property_type,
+        in_compound: propertyData.in_compound === true,
         governorate_id: propertyData.governorate_id || null,
         city_id: propertyData.city_id || null,
         district_id: propertyData.district_id || null,
@@ -4672,6 +4710,7 @@ router.post('/jobs', authMiddleware, async (req: AuthenticatedRequest, res: Resp
       purpose,
       urgency = 'standard',
       specialInstructions,
+      inCompound = false,
     } = req.body;
 
     // Validate required fields
@@ -4779,6 +4818,7 @@ router.post('/jobs', authMiddleware, async (req: AuthenticatedRequest, res: Resp
         city_id: cityId || null,
         district_id: districtId || null,
         compound_id: compoundId || null,
+        in_compound: inCompound === true,
         address_description: addressDescription,
         approximate_area: approximateArea || null,
         floor: floor || null,

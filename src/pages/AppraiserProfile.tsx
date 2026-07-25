@@ -28,6 +28,11 @@ interface AppraiserData {
   years_experience: number | null;
   photo_url: string | null;
   fra_license_number: string | null;
+  cbe_registration_number: string | null;
+  cbe_issue_date: string | null;
+  cbe_expiry_date: string | null;
+  syndicate_name: string | null;
+  syndicate_membership_number: string | null;
   bio_en: string | null;
   bio_ar: string | null;
   starting_price_egp: number | null;
@@ -442,17 +447,47 @@ export const AppraiserProfilePage = () => {
             </Card>
 
             <div className="mt-8 p-6 border-[0.5px] border-ink-100 rounded-md bg-cream-50/50">
-              <h5 className="text-[11px] uppercase tracking-wider text-ink-300 mb-3">Verification Badge</h5>
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
-                  <ShieldCheck className="h-4 w-4 text-emerald-700" />
+              <h5 className="text-[11px] uppercase tracking-wider text-ink-300 mb-3">Credentials</h5>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
+                    <ShieldCheck className="h-4 w-4 text-emerald-700" />
+                  </div>
+                  <p className="text-[12px] text-ink-500 leading-tight">
+                    FRA-Verified License<br/>
+                    <span className="text-ink-200 font-mono text-[10px] uppercase">
+                      {appraiser.fra_license_number || 'Validated'}
+                    </span>
+                  </p>
                 </div>
-                <p className="text-[12px] text-ink-500 leading-tight">
-                  FRA-Verified License<br/>
-                  <span className="text-ink-200 font-mono text-[10px] uppercase">
-                    {appraiser.fra_license_number || 'Validated'}
-                  </span>
-                </p>
+
+                {appraiser.cbe_registration_number && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center">
+                      <ShieldCheck className="h-4 w-4 text-sky-700" />
+                    </div>
+                    <p className="text-[12px] text-ink-500 leading-tight">
+                      CBE Accredited Valuator<br/>
+                      <span className="text-ink-200 font-mono text-[10px] uppercase">
+                        {appraiser.cbe_registration_number}
+                      </span>
+                    </p>
+                  </div>
+                )}
+
+                {appraiser.syndicate_name && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
+                      <ShieldCheck className="h-4 w-4 text-amber-700" />
+                    </div>
+                    <p className="text-[12px] text-ink-500 leading-tight">
+                      {appraiser.syndicate_name}<br/>
+                      <span className="text-ink-200 font-mono text-[10px] uppercase">
+                        {appraiser.syndicate_membership_number || 'Member'}
+                      </span>
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

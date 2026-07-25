@@ -120,8 +120,10 @@ export function OnboardingPage() {
   // File upload states
   const [uploadingPhoto, setUploadingPhoto] = React.useState(false);
   const [uploadingLicense, setUploadingLicense] = React.useState(false);
+  const [uploadingCbe, setUploadingCbe] = React.useState(false);
   const [uploadingIdFront, setUploadingIdFront] = React.useState(false);
   const [uploadingIdBack, setUploadingIdBack] = React.useState(false);
+  const [uploadingSyndicate, setUploadingSyndicate] = React.useState(false);
   const [uploadingSignature, setUploadingSignature] = React.useState(false);
   const [uploadingStamp, setUploadingStamp] = React.useState(false);
 
@@ -432,6 +434,10 @@ export function OnboardingPage() {
                   onLicenseUpload={(file) =>
                     uploadFile(file, 'verification-docs', 'fra_license', setUploadingLicense, 'fraLicenseStoragePath')
                   }
+                  uploadingCbe={uploadingCbe}
+                  onCbeUpload={(file) =>
+                    uploadFile(file, 'verification-docs', 'cbe_license', setUploadingCbe, 'cbeStoragePath')
+                  }
                 />
               )}
 
@@ -449,6 +455,10 @@ export function OnboardingPage() {
                   onIdBackUpload={(file) =>
                     uploadFile(file, 'verification-docs', 'national_id_back', setUploadingIdBack, 'nationalIdBackStoragePath')
                   }
+                  uploadingSyndicate={uploadingSyndicate}
+                  onSyndicateUpload={(file) =>
+                    uploadFile(file, 'verification-docs', 'syndicate_card', setUploadingSyndicate, 'syndicateCardStoragePath')
+                  }
                 />
               )}
 
@@ -459,6 +469,20 @@ export function OnboardingPage() {
                   onSave={saveDraft}
                   onNext={() => goToStep(5)}
                   onBack={() => goToStep(3)}
+                  onRequestArea={async (text) => {
+                    const res = await fetch('/api/onboarding/request-area', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${session?.access_token}`,
+                      },
+                      body: JSON.stringify({ areaText: text }),
+                    });
+                    if (!res.ok) {
+                      setError('Could not send your area request. Please try again.');
+                      throw new Error('request-area failed');
+                    }
+                  }}
                 />
               )}
 
@@ -654,6 +678,8 @@ function Step2FRALicense({
   onBack,
   uploadingLicense,
   onLicenseUpload,
+  uploadingCbe,
+  onCbeUpload,
 }: {
   draftData: OnboardingDraftData;
   onSave: (data: Partial<OnboardingDraftData>) => Promise<void>;
@@ -661,6 +687,8 @@ function Step2FRALicense({
   onBack: () => void;
   uploadingLicense: boolean;
   onLicenseUpload: (file: File) => void;
+  uploadingCbe: boolean;
+  onCbeUpload: (file: File) => void;
 }) {
   const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(step2Schema),
@@ -672,6 +700,7 @@ function Step2FRALicense({
   });
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const cbeFileInputRef = React.useRef<HTMLInputElement>(null);
 
   const onSubmit = async (data: z.infer<typeof step2Schema>) => {
     if (!draftData.fraLicenseStoragePath) {
@@ -770,6 +799,86 @@ function Step2FRALicense({
         )}
       </div>
 
+      {/* Optional CBE accreditation --------------------------------------- */}
+      <div className="border-t border-ink-100 pt-6 mt-2">
+        <div className="flex items-baseline justify-between mb-1">
+          <h3 className="text-body font-medium text-ink-600">CBE accreditation</h3>
+          <span className="text-[11px] text-ink-300">Optional</span>
+        </div>
+        <p className="text-[11px] text-ink-300 mb-4">
+          Central Bank of Egypt register of accredited valuators. Add it if you're
+          registered — it appears as an extra credential on your public profile.
+        </p>
+
+        <div>
+          <Input
+            label="CBE registration number"
+            defaultValue={draftData.cbeRegistrationNumber || ''}
+            placeholder="e.g. 1234"
+            onBlur={(e) => onSave({ cbeRegistrationNumber: e.target.value })}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-6 mt-4">
+          <Input
+            label="Issue date"
+            type="date"
+            defaultValue={draftData.cbeIssueDate || ''}
+            onBlur={(e) => onSave({ cbeIssueDate: e.target.value })}
+          />
+          <Input
+            label="Expiry date"
+            type="date"
+            defaultValue={draftData.cbeExpiryDate || ''}
+            onBlur={(e) => onSave({ cbeExpiryDate: e.target.value })}
+          />
+        </div>
+
+        <div className="mt-4">
+          <label className="eyebrow text-ink-300 mb-3 block">CBE document</label>
+          <div
+            className={`border-2 border-dashed rounded-lg p-6 text-center ${
+              draftData.cbeStoragePath ? 'border-emerald-300 bg-emerald-50' : 'border-ink-200'
+            }`}
+          >
+            {draftData.cbeStoragePath ? (
+              <div className="flex items-center justify-center gap-2 text-emerald-700">
+                <FileText className="h-5 w-5" />
+                <span className="text-body-s">CBE document uploaded</span>
+                <Check className="h-4 w-4" />
+              </div>
+            ) : (
+              <>
+                <input
+                  ref={cbeFileInputRef}
+                  type="file"
+                  accept=".pdf,image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) onCbeUpload(file);
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => cbeFileInputRef.current?.click()}
+                  disabled={uploadingCbe}
+                >
+                  {uploadingCbe ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Upload className="h-4 w-4 mr-2" />
+                  )}
+                  Upload CBE document
+                </Button>
+                <p className="text-[11px] text-ink-300 mt-2">PDF or image, max 10MB</p>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="flex justify-between pt-6">
         <Button type="button" variant="secondary" onClick={onBack}>
           <ChevronLeft className="h-4 w-4 mr-1" /> Back
@@ -792,6 +901,8 @@ function Step3NationalID({
   uploadingIdBack,
   onIdFrontUpload,
   onIdBackUpload,
+  uploadingSyndicate,
+  onSyndicateUpload,
 }: {
   draftData: OnboardingDraftData;
   onSave: (data: Partial<OnboardingDraftData>) => Promise<void>;
@@ -801,6 +912,8 @@ function Step3NationalID({
   uploadingIdBack: boolean;
   onIdFrontUpload: (file: File) => void;
   onIdBackUpload: (file: File) => void;
+  uploadingSyndicate: boolean;
+  onSyndicateUpload: (file: File) => void;
 }) {
   const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(step3Schema),
@@ -811,6 +924,7 @@ function Step3NationalID({
 
   const frontInputRef = React.useRef<HTMLInputElement>(null);
   const backInputRef = React.useRef<HTMLInputElement>(null);
+  const syndicateInputRef = React.useRef<HTMLInputElement>(null);
 
   const onSubmit = async (data: z.infer<typeof step3Schema>) => {
     if (!draftData.nationalIdFrontStoragePath || !draftData.nationalIdBackStoragePath) {
@@ -932,6 +1046,83 @@ function Step3NationalID({
         <p className="text-[11px] text-red-600">Both ID images are required</p>
       )}
 
+      {/* Optional professional syndicate membership ("carnet") ------------- */}
+      <div className="border-t border-ink-100 pt-6 mt-2">
+        <div className="flex items-baseline justify-between mb-1">
+          <h3 className="text-body font-medium text-ink-600">Professional syndicate card (carnet)</h3>
+          <span className="text-[11px] text-ink-300">Optional</span>
+        </div>
+        <p className="text-[11px] text-ink-300 mb-4">
+          Your syndicate membership (كارنيه النقابة), if you have one. Shown as a
+          "Syndicate Member" credential on your public profile.
+        </p>
+
+        <div className="grid grid-cols-2 gap-6">
+          <Input
+            label="Syndicate / issuing body"
+            defaultValue={draftData.syndicateName || ''}
+            placeholder="e.g. Engineers Syndicate"
+            onBlur={(e) => onSave({ syndicateName: e.target.value })}
+          />
+          <Input
+            label="Membership / carnet number"
+            defaultValue={draftData.syndicateMembershipNumber || ''}
+            placeholder="e.g. 45678"
+            onBlur={(e) => onSave({ syndicateMembershipNumber: e.target.value })}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-6 mt-4">
+          <Input
+            label="Expiry date"
+            type="date"
+            defaultValue={draftData.syndicateExpiryDate || ''}
+            onBlur={(e) => onSave({ syndicateExpiryDate: e.target.value })}
+          />
+          <div>
+            <label className="eyebrow text-ink-300 mb-3 block">Card photo</label>
+            <div
+              className={`border-2 border-dashed rounded-lg p-4 text-center ${
+                draftData.syndicateCardStoragePath ? 'border-emerald-300 bg-emerald-50' : 'border-ink-200'
+              }`}
+            >
+              {draftData.syndicateCardStoragePath ? (
+                <div className="flex items-center justify-center gap-2 text-emerald-700">
+                  <Check className="h-4 w-4" />
+                  <span className="text-[12px]">Uploaded</span>
+                </div>
+              ) : (
+                <>
+                  <input
+                    ref={syndicateInputRef}
+                    type="file"
+                    accept=".pdf,image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) onSyndicateUpload(file);
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => syndicateInputRef.current?.click()}
+                    disabled={uploadingSyndicate}
+                    className="text-ink-400"
+                  >
+                    {uploadingSyndicate ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="flex justify-between pt-6">
         <Button type="button" variant="secondary" onClick={onBack}>
           <ChevronLeft className="h-4 w-4 mr-1" /> Back
@@ -954,48 +1145,88 @@ function Step4ServiceAreas({
   onSave,
   onNext,
   onBack,
+  onRequestArea,
 }: {
   draftData: OnboardingDraftData;
   districts: GazetteerDistrict[];
   onSave: (data: Partial<OnboardingDraftData>) => Promise<void>;
   onNext: () => void;
   onBack: () => void;
+  onRequestArea: (text: string) => Promise<void>;
 }) {
   const [selectedIds, setSelectedIds] = React.useState<string[]>(
     draftData.selectedDistrictIds || []
   );
-  const [expandedCity, setExpandedCity] = React.useState<string | null>(null);
+  // Which governorate section is open, and which city (if any) is drilled into
+  // for district-level picking.
+  const [expandedGov, setExpandedGov] = React.useState<string | null>(null);
+  const [districtCity, setDistrictCity] = React.useState<string | null>(null);
+  const [areaRequest, setAreaRequest] = React.useState('');
+  const [requestSent, setRequestSent] = React.useState(false);
+  const [sendingRequest, setSendingRequest] = React.useState(false);
 
-  // Group districts by city
-  const citiesMap = React.useMemo(() => {
-    const map = new Map<string, { city: GazetteerDistrict['cities']; districts: GazetteerDistrict[] }>();
-    districts.forEach((d) => {
-      if (!map.has(d.city_id)) {
-        map.set(d.city_id, { city: d.cities, districts: [] });
+  // Build governorate -> city -> districts.
+  const govs = React.useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        name_en: string;
+        cities: Map<string, { city: GazetteerDistrict['cities']; districts: GazetteerDistrict[] }>;
       }
-      map.get(d.city_id)!.districts.push(d);
+    >();
+    districts.forEach((d) => {
+      const govId = d.cities.governorate_id;
+      if (!map.has(govId)) {
+        map.set(govId, { name_en: d.cities.governorates.name_en, cities: new Map() });
+      }
+      const gov = map.get(govId)!;
+      if (!gov.cities.has(d.city_id)) {
+        gov.cities.set(d.city_id, { city: d.cities, districts: [] });
+      }
+      gov.cities.get(d.city_id)!.districts.push(d);
     });
     return map;
   }, [districts]);
 
-  const toggleDistrict = (id: string) => {
-    const newIds = selectedIds.includes(id)
-      ? selectedIds.filter((x) => x !== id)
-      : [...selectedIds, id];
-    setSelectedIds(newIds);
+  const cityStatus = (cityDistricts: GazetteerDistrict[]): 'all' | 'some' | 'none' => {
+    const chosen = cityDistricts.filter((d) => selectedIds.includes(d.id)).length;
+    if (chosen === 0) return 'none';
+    return chosen === cityDistricts.length ? 'all' : 'some';
   };
 
-  const selectAllInCity = (cityId: string) => {
-    const cityDistricts = citiesMap.get(cityId)?.districts || [];
-    const cityDistrictIds = cityDistricts.map((d) => d.id);
-    const allSelected = cityDistrictIds.every((id) => selectedIds.includes(id));
-
-    if (allSelected) {
-      setSelectedIds(selectedIds.filter((id) => !cityDistrictIds.includes(id)));
+  const toggleWholeCity = (cityDistricts: GazetteerDistrict[]) => {
+    const ids = cityDistricts.map((d) => d.id);
+    if (cityStatus(cityDistricts) === 'all') {
+      setSelectedIds(selectedIds.filter((id) => !ids.includes(id)));
     } else {
-      setSelectedIds([...new Set([...selectedIds, ...cityDistrictIds])]);
+      setSelectedIds([...new Set([...selectedIds, ...ids])]);
     }
   };
+
+  const toggleDistrict = (id: string) => {
+    setSelectedIds(
+      selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id]
+    );
+  };
+
+  // Coverage chips: one "All of {city}" chip per fully-covered city, otherwise
+  // one chip per individually-picked district.
+  const chips = React.useMemo(() => {
+    const out: Array<{ key: string; label: string; districtIds: string[] }> = [];
+    govs.forEach((gov) => {
+      gov.cities.forEach(({ city, districts: cd }) => {
+        const status = cityStatus(cd);
+        if (status === 'all') {
+          out.push({ key: `city-${cd[0].city_id}`, label: `All of ${city.name_en}`, districtIds: cd.map((d) => d.id) });
+        } else if (status === 'some') {
+          cd.filter((d) => selectedIds.includes(d.id)).forEach((d) =>
+            out.push({ key: `d-${d.id}`, label: `${d.name_en} (${city.name_en})`, districtIds: [d.id] })
+          );
+        }
+      });
+    });
+    return out;
+  }, [govs, selectedIds]);
 
   const handleNext = async () => {
     if (selectedIds.length === 0) return;
@@ -1003,19 +1234,38 @@ function Step4ServiceAreas({
     onNext();
   };
 
-  const selectedDistricts = districts.filter((d) => selectedIds.includes(d.id));
+  const handleSendRequest = async () => {
+    if (!areaRequest.trim()) return;
+    setSendingRequest(true);
+    try {
+      await onRequestArea(areaRequest.trim());
+      setRequestSent(true);
+      setAreaRequest('');
+    } catch {
+      // onRequestArea surfaces its own error via the page-level banner
+    } finally {
+      setSendingRequest(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <h2 className="text-h3 text-ink-600 mb-6">Service areas</h2>
+      <h2 className="text-h3 text-ink-600 mb-1">Service areas</h2>
+      <p className="text-body-s text-ink-400 mb-4">
+        Tick the cities you cover. Cover a whole city in one tap, or open a city to
+        choose specific districts.
+      </p>
 
-      {/* Selected chips */}
-      {selectedDistricts.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-6">
-          {selectedDistricts.map((d) => (
-            <Badge key={d.id} className="bg-emerald-100 text-emerald-700 flex items-center gap-1">
-              {d.name_en}
-              <button onClick={() => toggleDistrict(d.id)}>
+      {/* Coverage chips */}
+      {chips.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-2">
+          {chips.map((chip) => (
+            <Badge key={chip.key} className="bg-emerald-100 text-emerald-700 flex items-center gap-1">
+              {chip.label}
+              <button
+                type="button"
+                onClick={() => setSelectedIds(selectedIds.filter((id) => !chip.districtIds.includes(id)))}
+              >
                 <X className="h-3 w-3" />
               </button>
             </Badge>
@@ -1023,63 +1273,128 @@ function Step4ServiceAreas({
         </div>
       )}
 
-      {/* City/District selector */}
+      {/* Governorate -> city selector */}
       <div className="space-y-2 max-h-96 overflow-y-auto">
-        {Array.from(citiesMap.entries()).map(([cityId, { city, districts: cityDistricts }]) => (
-          <div key={cityId} className="border-hairline rounded-md">
-            <button
-              type="button"
-              className="w-full flex items-center justify-between p-3 text-left hover:bg-cream-200"
-              onClick={() => setExpandedCity(expandedCity === cityId ? null : cityId)}
-            >
-              <span className="text-body-s font-medium text-ink-600">
-                {city.name_en}, {city.governorates.name_en}
-              </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="text-[11px] text-emerald-600"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    selectAllInCity(cityId);
-                  }}
-                >
-                  {cityDistricts.every((d) => selectedIds.includes(d.id)) ? 'Deselect all' : 'Select all'}
-                </Button>
-                <ChevronRight
-                  className={`h-4 w-4 text-ink-300 transition-transform ${
-                    expandedCity === cityId ? 'rotate-90' : ''
-                  }`}
-                />
-              </div>
-            </button>
+        {Array.from(govs.entries()).map(([govId, gov]) => {
+          const cityList = Array.from(gov.cities.entries());
+          const covered = cityList.filter(([, { districts: cd }]) => cityStatus(cd) !== 'none').length;
+          return (
+            <div key={govId} className="border-hairline rounded-md">
+              <button
+                type="button"
+                className="w-full flex items-center justify-between p-3 text-left hover:bg-cream-200"
+                onClick={() => setExpandedGov(expandedGov === govId ? null : govId)}
+              >
+                <span className="text-body-s font-medium text-ink-600">{gov.name_en}</span>
+                <div className="flex items-center gap-2">
+                  {covered > 0 && (
+                    <span className="text-[11px] text-emerald-600">{covered} selected</span>
+                  )}
+                  <ChevronRight
+                    className={`h-4 w-4 text-ink-300 transition-transform ${
+                      expandedGov === govId ? 'rotate-90' : ''
+                    }`}
+                  />
+                </div>
+              </button>
 
-            {expandedCity === cityId && (
-              <div className="px-3 pb-3 grid grid-cols-2 gap-2">
-                {cityDistricts.map((district) => (
-                  <label
-                    key={district.id}
-                    className="flex items-center gap-2 p-2 rounded hover:bg-cream-200 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(district.id)}
-                      onChange={() => toggleDistrict(district.id)}
-                      className="w-4 h-4 rounded border-ink-200 text-emerald-500 focus:ring-emerald-500"
-                    />
-                    <span className="text-body-s text-ink-500">{district.name_en}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
+              {expandedGov === govId && (
+                <div className="px-2 pb-2 space-y-1">
+                  {cityList.map(([cityId, { city, districts: cd }]) => {
+                    const status = cityStatus(cd);
+                    const chosenCount = cd.filter((d) => selectedIds.includes(d.id)).length;
+                    const open = districtCity === cityId;
+                    return (
+                      <div key={cityId} className="rounded-md bg-cream-100">
+                        <div className="flex items-center justify-between gap-2 p-2">
+                          <label className="flex items-center gap-2 cursor-pointer flex-1">
+                            <input
+                              type="checkbox"
+                              checked={status === 'all'}
+                              ref={(el) => {
+                                if (el) el.indeterminate = status === 'some';
+                              }}
+                              onChange={() => toggleWholeCity(cd)}
+                              className="w-4 h-4 rounded border-ink-200 text-emerald-500 focus:ring-emerald-500"
+                            />
+                            <span className="text-body-s text-ink-600">{city.name_en}</span>
+                            {status === 'some' && (
+                              <span className="text-[11px] text-ink-300">
+                                {chosenCount} of {cd.length} districts
+                              </span>
+                            )}
+                          </label>
+                          <button
+                            type="button"
+                            className="text-[11px] text-ink-400 hover:text-emerald-600"
+                            onClick={() => setDistrictCity(open ? null : cityId)}
+                          >
+                            {open ? 'Hide districts' : 'Pick districts'}
+                          </button>
+                        </div>
+
+                        {open && (
+                          <div className="px-3 pb-3 grid grid-cols-2 gap-1">
+                            {cd.map((district) => (
+                              <label
+                                key={district.id}
+                                className="flex items-center gap-2 p-1.5 rounded hover:bg-cream-200 cursor-pointer"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedIds.includes(district.id)}
+                                  onChange={() => toggleDistrict(district.id)}
+                                  className="w-4 h-4 rounded border-ink-200 text-emerald-500 focus:ring-emerald-500"
+                                />
+                                <span className="text-[12px] text-ink-500">{district.name_en}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {selectedIds.length === 0 && (
         <p className="text-[11px] text-red-600">Select at least one service area</p>
       )}
+
+      {/* Request a missing area */}
+      <div className="border-t border-ink-100 pt-4">
+        <p className="text-[11px] text-ink-400 mb-2">
+          Can't find an area you cover? Tell us and we'll review adding it.
+        </p>
+        {requestSent ? (
+          <div className="flex items-center gap-2 text-emerald-700 text-body-s">
+            <Check className="h-4 w-4" /> Thanks — we'll review your request.
+          </div>
+        ) : (
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <Input
+                label=""
+                value={areaRequest}
+                onChange={(e) => setAreaRequest(e.target.value)}
+                placeholder="e.g. New Heliopolis, Cairo"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleSendRequest}
+              disabled={!areaRequest.trim() || sendingRequest}
+            >
+              {sendingRequest ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Request'}
+            </Button>
+          </div>
+        )}
+      </div>
 
       <div className="flex justify-between pt-6">
         <Button type="button" variant="secondary" onClick={onBack}>

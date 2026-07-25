@@ -51,13 +51,23 @@ interface SelectedAppraiser {
 
 const PROPERTY_TYPES = [
   { value: 'apartment', label: 'Apartment', labelAr: 'شقة' },
-  { value: 'villa', label: 'Villa', labelAr: 'فيلا' },
+  { value: 'studio', label: 'Studio', labelAr: 'استوديو' },
   { value: 'duplex', label: 'Duplex', labelAr: 'دوبلكس' },
-  { value: 'commercial_shop', label: 'Commercial', labelAr: 'تجاري' },
-  { value: 'office', label: 'Office', labelAr: 'مكتب' },
-  { value: 'building', label: 'Building', labelAr: 'مبنى' },
-  { value: 'compound_unit', label: 'Compound Unit', labelAr: 'وحدة كمبوند' },
+  { value: 'penthouse', label: 'Penthouse', labelAr: 'بنتهاوس' },
   { value: 'roof', label: 'Roof', labelAr: 'روف' },
+  { value: 'garden_ground_floor', label: 'Ground Floor w/ Garden', labelAr: 'دور أرضي بحديقة' },
+  { value: 'villa', label: 'Villa', labelAr: 'فيلا' },
+  { value: 'twinhouse', label: 'Twinhouse', labelAr: 'توين هاوس' },
+  { value: 'townhouse', label: 'Townhouse', labelAr: 'تاون هاوس' },
+  { value: 'chalet', label: 'Chalet', labelAr: 'شاليه' },
+  { value: 'cabin', label: 'Cabin', labelAr: 'كابين' },
+  { value: 'office', label: 'Office', labelAr: 'مكتب' },
+  { value: 'administrative_unit', label: 'Administrative Unit', labelAr: 'وحدة إدارية' },
+  { value: 'clinic', label: 'Clinic', labelAr: 'عيادة' },
+  { value: 'commercial_shop', label: 'Commercial', labelAr: 'تجاري' },
+  { value: 'building', label: 'Building', labelAr: 'مبنى' },
+  { value: 'warehouse', label: 'Warehouse', labelAr: 'مخزن' },
+  { value: 'land', label: 'Land / Plot', labelAr: 'أرض' },
 ];
 
 const REPORT_KINDS = [
@@ -96,6 +106,7 @@ export default function RequestAppraisal() {
 
   // Form state
   const [propertyType, setPropertyType] = useState('apartment');
+  const [inCompound, setInCompound] = useState(false);
   const [governorateId, setGovernorateId] = useState('');
   const [cityId, setCityId] = useState('');
   const [districtId, setDistrictId] = useState('');
@@ -244,6 +255,7 @@ export default function RequestAppraisal() {
         },
         body: JSON.stringify({
           propertyType,
+          inCompound,
           governorateId,
           cityId: cityId || null,
           districtId: districtId || null,
@@ -358,6 +370,19 @@ export default function RequestAppraisal() {
                     </button>
                   ))}
                 </div>
+
+                {/* Inside a gated compound? — independent of the type above */}
+                <label className="flex items-center gap-2 mt-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={inCompound}
+                    onChange={(e) => setInCompound(e.target.checked)}
+                    className="w-4 h-4 rounded border-cream-400 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <span className="text-sm text-ink-700">
+                    {t('marketplace.inCompound', 'This unit is inside a gated compound')}
+                  </span>
+                </label>
               </div>
 
               {/* Location */}

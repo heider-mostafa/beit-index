@@ -137,13 +137,24 @@ export function ReportsPage() {
   const getPropertyTypeLabel = (type: string) => {
     const labels: Record<string, { en: string; ar: string }> = {
       apartment: { en: 'Apartment', ar: 'شقة' },
-      villa: { en: 'Villa', ar: 'فيلا' },
+      studio: { en: 'Studio', ar: 'استوديو' },
       duplex: { en: 'Duplex', ar: 'دوبلكس' },
-      compound_unit: { en: 'Compound Unit', ar: 'وحدة مجمع' },
+      penthouse: { en: 'Penthouse', ar: 'بنتهاوس' },
       roof: { en: 'Roof', ar: 'روف' },
-      commercial_shop: { en: 'Commercial Shop', ar: 'محل تجاري' },
+      garden_ground_floor: { en: 'Ground Floor w/ Garden', ar: 'دور أرضي بحديقة' },
+      villa: { en: 'Villa', ar: 'فيلا' },
+      twinhouse: { en: 'Twinhouse', ar: 'توين هاوس' },
+      townhouse: { en: 'Townhouse', ar: 'تاون هاوس' },
+      chalet: { en: 'Chalet', ar: 'شاليه' },
+      cabin: { en: 'Cabin', ar: 'كابين' },
       office: { en: 'Office', ar: 'مكتب' },
+      administrative_unit: { en: 'Administrative Unit', ar: 'وحدة إدارية' },
+      clinic: { en: 'Clinic', ar: 'عيادة' },
+      commercial_shop: { en: 'Commercial Shop', ar: 'محل تجاري' },
       building: { en: 'Building', ar: 'عمارة' },
+      warehouse: { en: 'Warehouse', ar: 'مخزن' },
+      land: { en: 'Land / Plot', ar: 'أرض / قطعة أرض' },
+      compound_unit: { en: 'Compound Unit', ar: 'وحدة كمبوند' },
     };
     return labels[type]?.[isAr ? 'ar' : 'en'] || type;
   };

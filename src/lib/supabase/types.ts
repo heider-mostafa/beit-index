@@ -4,7 +4,7 @@
 export type UserRole = 'owner' | 'appraiser' | 'bank' | 'admin';
 export type ProfileStatus = 'pending' | 'under_review' | 'verified' | 'rejected' | 'suspended';
 export type AvailabilityStatus = 'this_week' | 'next_week' | 'two_weeks' | 'unavailable';
-export type DocumentType = 'fra_license' | 'national_id_front' | 'national_id_back' | 'signature' | 'stamp' | 'other';
+export type DocumentType = 'fra_license' | 'national_id_front' | 'national_id_back' | 'signature' | 'stamp' | 'cbe_license' | 'syndicate_card' | 'other';
 export type AuditAction = 'admin_override' | 'verification_doc_viewed' | 'profile_approved' | 'profile_rejected' | 'changes_requested' | 'admin_invited' | 'admin_invite_consumed';
 
 export interface Database {
@@ -446,16 +446,24 @@ export interface OnboardingDraftData {
   professionalTitle?: string;
   photoStoragePath?: string;
 
-  // Step 2: FRA License
+  // Step 2: FRA License (required) + optional CBE accreditation
   fraLicenseNumber?: string;
   fraLicenseIssueDate?: string;
   fraLicenseExpiryDate?: string;
   fraLicenseStoragePath?: string;
+  cbeRegistrationNumber?: string;
+  cbeIssueDate?: string;
+  cbeExpiryDate?: string;
+  cbeStoragePath?: string;
 
-  // Step 3: National ID
+  // Step 3: National ID (required) + optional professional syndicate ("carnet")
   nationalIdNumber?: string;
   nationalIdFrontStoragePath?: string;
   nationalIdBackStoragePath?: string;
+  syndicateName?: string;
+  syndicateMembershipNumber?: string;
+  syndicateExpiryDate?: string;
+  syndicateCardStoragePath?: string;
 
   // Step 4: Service areas
   selectedDistrictIds?: string[];

@@ -514,6 +514,7 @@ function NewReportModal({
   const { session } = useAuth();
   const [loading, setLoading] = React.useState(false);
   const [propertyType, setPropertyType] = React.useState('villa');
+  const [inCompound, setInCompound] = React.useState(false);
   const [addressDescription, setAddressDescription] = React.useState('');
   const [projectName, setProjectName] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
@@ -537,6 +538,7 @@ function NewReportModal({
         body: JSON.stringify({
           propertyData: {
             property_type: propertyType,
+            in_compound: inCompound,
             address_description: addressDescription,
             project_name: projectName || null,
           },
@@ -574,12 +576,38 @@ function NewReportModal({
               className="w-full bg-cream-100 border border-ink-100 rounded-md px-3 py-2 text-body-s text-ink-600 focus:border-emerald-500 focus:outline-none"
             >
               <option value="apartment">{t('propertyTypes.apartment', 'Apartment')}</option>
-              <option value="villa">{t('propertyTypes.villa', 'Villa')}</option>
+              <option value="studio">{t('propertyTypes.studio', 'Studio')}</option>
               <option value="duplex">{t('propertyTypes.duplex', 'Duplex')}</option>
-              <option value="compound_unit">{t('propertyTypes.compoundUnit', 'Compound Unit')}</option>
+              <option value="penthouse">{t('propertyTypes.penthouse', 'Penthouse')}</option>
               <option value="roof">{t('propertyTypes.roof', 'Roof')}</option>
+              <option value="garden_ground_floor">{t('propertyTypes.gardenGroundFloor', 'Ground Floor w/ Garden')}</option>
+              <option value="villa">{t('propertyTypes.villa', 'Villa')}</option>
+              <option value="twinhouse">{t('propertyTypes.twinhouse', 'Twinhouse')}</option>
+              <option value="townhouse">{t('propertyTypes.townhouse', 'Townhouse')}</option>
+              <option value="chalet">{t('propertyTypes.chalet', 'Chalet')}</option>
+              <option value="cabin">{t('propertyTypes.cabin', 'Cabin')}</option>
+              <option value="office">{t('propertyTypes.office', 'Office')}</option>
+              <option value="administrative_unit">{t('propertyTypes.administrativeUnit', 'Administrative Unit')}</option>
+              <option value="clinic">{t('propertyTypes.clinic', 'Clinic')}</option>
+              <option value="commercial_shop">{t('propertyTypes.commercialShop', 'Commercial Shop')}</option>
+              <option value="building">{t('propertyTypes.building', 'Building')}</option>
+              <option value="warehouse">{t('propertyTypes.warehouse', 'Warehouse')}</option>
+              <option value="land">{t('propertyTypes.land', 'Land / Plot')}</option>
             </select>
           </div>
+
+          {/* Inside a gated compound? — independent of the type above */}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={inCompound}
+              onChange={(e) => setInCompound(e.target.checked)}
+              className="w-4 h-4 rounded border-ink-200 text-emerald-500 focus:ring-emerald-500"
+            />
+            <span className="text-body-s text-ink-600">
+              {t('dashboard.newReport.inCompound', 'Inside a gated compound')}
+            </span>
+          </label>
 
           {/* Project Name */}
           <div>

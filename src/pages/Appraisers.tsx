@@ -14,6 +14,8 @@ interface Appraiser {
   years_experience: number | null;
   photo_url: string | null;
   fra_license_number: string | null;
+  cbe_registration_number: string | null;
+  syndicate_name: string | null;
   starting_price_egp: number | null;
   averageRating: number;
   reviewCount: number;
@@ -315,11 +317,28 @@ const AppraiserCard = ({ appraiser, isAr, ...props }: AppraiserCardProps) => {
           </div>
           <h3 className="text-xl mb-2 font-serif group-hover:text-emerald-500 transition-colors">{name}</h3>
           {gov && (
-            <p className="text-body-s text-ink-300 mb-6 flex items-center gap-1.5">
+            <p className="text-body-s text-ink-300 mb-3 flex items-center gap-1.5">
               <MapPin className="h-3 w-3" />
               {gov}
             </p>
           )}
+
+          {/* Credential badges — FRA always, CBE/syndicate when provided */}
+          <div className="flex flex-wrap gap-1.5 mb-6">
+            <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">
+              {isAr ? 'مرخّص من الهيئة' : 'Licensed by FRA'}
+            </Badge>
+            {appraiser.cbe_registration_number && (
+              <Badge className="bg-sky-100 text-sky-700 text-[10px]">
+                {isAr ? 'معتمد من البنك المركزي' : 'CBE Accredited'}
+              </Badge>
+            )}
+            {appraiser.syndicate_name && (
+              <Badge className="bg-amber-100 text-amber-700 text-[10px]">
+                {isAr ? 'عضو نقابة' : 'Syndicate Member'}
+              </Badge>
+            )}
+          </div>
 
           <div className="flex flex-wrap gap-2 pt-4 border-t border-ink-50">
             {appraiser.appraiser_specialties?.slice(0, 2).map((s, idx) => (
