@@ -2612,22 +2612,17 @@ router.post('/reports/:id/finalize', authMiddleware, async (req: AuthenticatedRe
       });
     }
 
-    // Only require what the finalize itself structurally needs. The DB trigger
-    // writes an anonymized valuation_records row on finalize whose columns are
-    // NOT NULL (final_value, unit_net_area, value_per_sqm = value/area,
-    // chosen_method, appraisal_date), and the report trigger rejects a null
-    // final value. Everything else (client/owner names, validity date, land
-    // value, narrative) is optional so a partial report can still be finalized.
-    // Use == null (not falsy) so a legitimate 0 isn't treated as missing.
+    // The only thing finalize structurally needs is a final value (the report
+    // trigger rejects a null one). Everything else is optional — the finalize
+    // trigger now writes the anonymized comp record only when its data is
+    // complete, otherwise it just finalizes without one. Use == null (not
+    // falsy) so a legitimate 0 isn't treated as missing.
     const missingFields: string[] = [];
     if (report.final_value == null) missingFields.push('final_value');
-    if (report.unit_net_area == null) missingFields.push('unit_net_area');
-    if (!report.chosen_method) missingFields.push('chosen_method');
-    if (!report.appraisal_date) missingFields.push('appraisal_date');
 
     if (missingFields.length > 0) {
       return res.status(400).json({
-        error: 'To finalize, a report needs at least a final value, unit area, valuation method, and appraisal date.',
+        error: 'To finalize, a report needs at least a final value.',
         missingFields,
       });
     }
