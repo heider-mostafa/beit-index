@@ -3,6 +3,20 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/src/components/ui';
 import { useAuth } from '@/src/contexts/AuthContext';
+import { getSupabaseBrowserClient } from '@/src/lib/supabase/browser';
+
+const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+// Fetch a current (auto-refreshed) access token — used to recover from a 401
+// when the token has expired mid-editing.
+async function getFreshAccessToken(): Promise<string | null> {
+  try {
+    const { data } = await getSupabaseBrowserClient().auth.getSession();
+    return data.session?.access_token ?? null;
+  } catch {
+    return null;
+  }
+}
 import {
   ArrowLeft,
   Save,
@@ -411,13 +425,7 @@ export function ReportEditorPage() {
         }
       }
 
-      const res = await fetch(`/api/reports/${report.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
+      const payload = JSON.stringify({
           version: versionToSend,
           // Send all editable fields
           project_name: report.project_name,
@@ -472,43 +480,93 @@ export function ReportEditorPage() {
           final_value: report.final_value,
           land_value: report.land_value,
           monthly_rent_reconciled: report.monthly_rent_reconciled,
-        }),
       });
 
-      if (!res.ok) {
-        const data = await res.json();
+      // Retry loop: transient failures (network drop, expired token, server
+      // hiccup) must never strand the appraiser's work. We keep local edits and
+      // retry with backoff; only a genuine rejection (400/403/404) or an
+      // unresolved version conflict stops. Whatever isn't saved stays flagged
+      // unsaved, and the background flush keeps trying.
+      const maxAttempts = 4;
+      let token = session.access_token;
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        let res: Response;
+        try {
+          res = await fetch(`/api/reports/${report.id}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: payload,
+          });
+        } catch {
+          // Request never completed (offline / connection dropped).
+          if (attempt < maxAttempts) {
+            await delay(500 * attempt);
+            continue;
+          }
+          setError("Can't reach the server — your changes are safe and will save automatically once you're back online.");
+          return;
+        }
+
         if (res.status === 409) {
-          // Version conflict. On the first attempt this is almost always our own
-          // overlapping autosave, so resync to the server's version and retry
-          // once, keeping the appraiser's in-progress edits. If a retry still
-          // conflicts, it's a genuine external change — surface it.
+          const data = await res.json().catch(() => ({} as { currentVersion?: number; message?: string }));
           if (!isRetry && typeof data.currentVersion === 'number') {
             conflictVersion = data.currentVersion;
           } else {
-            setError(`Version conflict: ${data.message}`);
+            setError(`Version conflict: ${data.message ?? 'please refresh and try again'}`);
           }
           return;
         }
-        throw new Error(data.error || 'Failed to save');
-      }
 
-      const updated = await res.json();
-      // Only sync the version. Do NOT merge the server's echo of the row back
-      // over local state: the user may have typed more while this save was in
-      // flight, and echoing would overwrite (delete) those in-progress edits.
-      if (typeof updated?.version === 'number') {
-        const nextVersion = updated.version;
-        reportRef.current = reportRef.current
-          ? { ...reportRef.current, version: nextVersion }
-          : reportRef.current;
-        setReport((prev) => (prev ? { ...prev, version: nextVersion } : null));
+        if (res.status === 401) {
+          // Token likely expired mid-session — refresh it and retry.
+          const fresh = await getFreshAccessToken();
+          if (fresh) token = fresh;
+          if (attempt < maxAttempts) {
+            await delay(400);
+            continue;
+          }
+          setError('Your session expired — please sign in again. Your changes are still here.');
+          return;
+        }
+
+        if (res.status >= 500) {
+          if (attempt < maxAttempts) {
+            await delay(500 * attempt);
+            continue;
+          }
+          setError('The server had trouble saving — your changes are kept and will retry automatically.');
+          return;
+        }
+
+        if (!res.ok) {
+          // 400/403/404 — a real rejection; retrying won't help.
+          const data = await res.json().catch(() => ({} as { error?: string }));
+          setError(data.error || 'Failed to save changes.');
+          return;
+        }
+
+        // Success. Only sync the version — never merge the server echo back over
+        // local state, or in-flight keystrokes get clobbered.
+        const updated = await res.json().catch(() => ({} as { version?: number }));
+        if (typeof updated?.version === 'number') {
+          const nextVersion = updated.version;
+          reportRef.current = reportRef.current
+            ? { ...reportRef.current, version: nextVersion }
+            : reportRef.current;
+          setReport((prev) => (prev ? { ...prev, version: nextVersion } : null));
+        }
+        setHasUnsavedChanges(false);
+        setLastSaved(new Date());
+        setError(null);
+        return;
       }
-      setHasUnsavedChanges(false);
-      setLastSaved(new Date());
-      setError(null);
     } catch (err) {
       console.error('Save error:', err);
-      setError('Failed to save changes');
+      setError('Couldn’t save just now — your changes are kept and will retry automatically.');
     } finally {
       savingRef.current = false;
       setSaving(false);
@@ -539,6 +597,38 @@ export function ReportEditorPage() {
   React.useEffect(() => {
     saveReportRef.current = saveReport;
   }, [saveReport]);
+
+  // Mirror of hasUnsavedChanges for the background flush + unload guard.
+  const hasUnsavedRef = React.useRef(false);
+  React.useEffect(() => {
+    hasUnsavedRef.current = hasUnsavedChanges;
+  }, [hasUnsavedChanges]);
+
+  // Safety net: while anything is unsaved, keep trying to persist it every few
+  // seconds. Combined with the in-request retry, this means a dropped
+  // connection or an expired-then-refreshed session can never strand work —
+  // once the tab can reach the server again, the next tick saves.
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      if (hasUnsavedRef.current && !savingRef.current) {
+        saveReportRef.current();
+      }
+    }, 8000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Warn before leaving with unsaved changes (last line of defence if the
+  // network is down and retries haven't landed yet).
+  React.useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedRef.current) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, []);
 
   // Trigger debounced save on field change
   const handleFieldChange = (field: string, value: unknown) => {
