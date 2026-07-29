@@ -881,17 +881,43 @@ export function ReportEditorPage() {
 
     setFinalizing(true);
     try {
-      const res = await fetch(`/api/reports/${report.id}/finalize`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ declarations }),
-      });
+      // Flush any pending autosave first so the finalized report includes the
+      // latest edits (and reportRef.version is current for the check below).
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      await saveReport();
+
+      const finalizeOnce = (version: number | undefined) =>
+        fetch(`/api/reports/${report.id}/finalize`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          // The finalize endpoint requires the current version for optimistic
+          // locking — the previous code never sent it, so finalize always failed
+          // with "Version is required".
+          body: JSON.stringify({ declarations, version }),
+        });
+
+      let version = reportRef.current?.version ?? report.version;
+      let res = await finalizeOnce(version);
+
+      // On a version conflict, resync to the server's current version and retry.
+      if (res.status === 409) {
+        const data = await res.json().catch(() => ({} as { currentVersion?: number }));
+        if (typeof data.currentVersion === 'number') {
+          version = data.currentVersion;
+          if (reportRef.current) reportRef.current = { ...reportRef.current, version };
+          setReport((prev) => (prev ? { ...prev, version } : prev));
+          res = await finalizeOnce(version);
+        }
+      }
 
       if (!res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({} as { error?: string }));
         throw new Error(data.error || 'Finalization failed');
       }
 
