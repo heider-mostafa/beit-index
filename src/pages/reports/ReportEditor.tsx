@@ -298,6 +298,7 @@ export function ReportEditorPage() {
     dataAccuracy: false,
   });
   const [finalizing, setFinalizing] = React.useState(false);
+  const [finalizeSuccess, setFinalizeSuccess] = React.useState(false);
 
   // Debounced save timer
   const saveTimerRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -1021,9 +1022,15 @@ export function ReportEditorPage() {
         throw new Error(data.error || 'Finalization failed');
       }
 
-      const finalized = await res.json();
-      setReport((prev) => prev ? { ...prev, ...finalized } : null);
+      // The endpoint returns { success, report, message } — the finalized report
+      // is nested under .report (spreading the wrapper would not update status).
+      const data = await res.json().catch(() => ({} as { report?: Report }));
+      setReport((prev) => (prev && data.report ? { ...prev, ...data.report } : prev));
+      setHasUnsavedChanges(false);
       setFinalizeModalOpen(false);
+      // Show a brief confirmation, then return to the dashboard.
+      setFinalizeSuccess(true);
+      setTimeout(() => navigate('/dashboard'), 1800);
     } catch (err: any) {
       console.error('Error finalizing:', err);
       setError(err.message || 'Failed to finalize report');
@@ -1031,6 +1038,20 @@ export function ReportEditorPage() {
       setFinalizing(false);
     }
   };
+
+  if (finalizeSuccess) {
+    return (
+      <div className="min-h-screen bg-cream-100 pt-24 flex items-center justify-center">
+        <div className="text-center">
+          <CheckCircle className="h-12 w-12 text-emerald-500 mx-auto mb-4" />
+          <h2 className="text-h3 text-ink-600 mb-2">{t('reports.finalize.success', 'Report finalized')}</h2>
+          <p className="text-body-s text-ink-400">
+            {t('reports.finalize.redirecting', 'Taking you back to your dashboard…')}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
