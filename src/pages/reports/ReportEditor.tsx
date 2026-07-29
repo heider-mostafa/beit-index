@@ -1007,7 +1007,17 @@ export function ReportEditorPage() {
       }
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({} as { error?: string }));
+        const data = await res.json().catch(() => ({} as { error?: string; missingFields?: string[] }));
+        if (data.missingFields?.length) {
+          const labels: Record<string, string> = {
+            final_value: 'final value',
+            unit_net_area: 'unit net area',
+            chosen_method: 'valuation method',
+            appraisal_date: 'appraisal date',
+          };
+          const list = data.missingFields.map((f) => labels[f] || f).join(', ');
+          throw new Error(`Still needed to finalize: ${list}.`);
+        }
         throw new Error(data.error || 'Finalization failed');
       }
 

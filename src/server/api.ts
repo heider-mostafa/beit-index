@@ -2612,32 +2612,37 @@ router.post('/reports/:id/finalize', authMiddleware, async (req: AuthenticatedRe
       });
     }
 
-    // Validate required fields for finalization
+    // Only require what the finalize itself structurally needs. The DB trigger
+    // writes an anonymized valuation_records row on finalize whose columns are
+    // NOT NULL (final_value, unit_net_area, value_per_sqm = value/area,
+    // chosen_method, appraisal_date), and the report trigger rejects a null
+    // final value. Everything else (client/owner names, validity date, land
+    // value, narrative) is optional so a partial report can still be finalized.
+    // Use == null (not falsy) so a legitimate 0 isn't treated as missing.
     const missingFields: string[] = [];
-
-    if (!report.client_name) missingFields.push('client_name');
-    if (!report.owner_name) missingFields.push('owner_name');
-    if (!report.appraisal_date) missingFields.push('appraisal_date');
-    if (!report.valid_until) missingFields.push('valid_until');
-    if (!report.unit_net_area) missingFields.push('unit_net_area');
+    if (report.final_value == null) missingFields.push('final_value');
+    if (report.unit_net_area == null) missingFields.push('unit_net_area');
     if (!report.chosen_method) missingFields.push('chosen_method');
-    if (!report.final_value) missingFields.push('final_value');
-    if (!report.land_value) missingFields.push('land_value');
-    if (!report.reconciliation_rationale) missingFields.push('reconciliation_rationale');
+    if (!report.appraisal_date) missingFields.push('appraisal_date');
 
     if (missingFields.length > 0) {
       return res.status(400).json({
-        error: 'Missing required fields for finalization',
+        error: 'To finalize, a report needs at least a final value, unit area, valuation method, and appraisal date.',
         missingFields,
       });
     }
+
+    // Land value is optional — default to 0 so building_value is well-defined and
+    // the finalize trigger (which requires a non-null land value) is satisfied.
+    const landValue = report.land_value ?? 0;
 
     // Finalize (trigger will set finalized_at and create valuation record)
     const { data: finalized, error: finalizeError } = await supabase
       .from('reports')
       .update({
         status: 'finalized',
-        building_value: report.final_value - report.land_value,
+        land_value: landValue,
+        building_value: report.final_value - landValue,
       })
       .eq('id', id)
       .eq('version', version)
