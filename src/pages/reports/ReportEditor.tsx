@@ -271,6 +271,9 @@ export function ReportEditorPage() {
   const [photoCategory, setPhotoCategory] = React.useState<string>('other');
   const [photoCaption, setPhotoCaption] = React.useState('');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  // report-photos is a private bucket, so each photo needs a short-lived signed
+  // URL to render. Keyed by storage_path.
+  const [photoUrls, setPhotoUrls] = React.useState<Record<string, string>>({});
 
   // Finalization modal state
   const [finalizeModalOpen, setFinalizeModalOpen] = React.useState(false);
@@ -325,6 +328,47 @@ export function ReportEditorPage() {
     fetchReport();
   }, [id, session?.access_token]);
 
+  // Resolve short-lived signed URLs so private report-photos actually render.
+  React.useEffect(() => {
+    const photos = report?.photos;
+    if (!photos || photos.length === 0 || !session?.access_token) return;
+    const missing = photos.filter((p) => p.storage_path && !photoUrls[p.storage_path]);
+    if (missing.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      const resolved = await Promise.all(
+        missing.map(async (p) => {
+          try {
+            const res = await fetch('/api/download/get-url', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({ bucket: 'report-photos', storagePath: p.storage_path }),
+            });
+            if (!res.ok) return null;
+            const { signedUrl } = await res.json();
+            return [p.storage_path, signedUrl] as const;
+          } catch {
+            return null;
+          }
+        })
+      );
+      if (cancelled) return;
+      setPhotoUrls((prev) => {
+        const next = { ...prev };
+        for (const entry of resolved) if (entry) next[entry[0]] = entry[1];
+        return next;
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [report?.photos, session?.access_token, photoUrls]);
+
   // Auto-save with debounce
   const saveReport = React.useCallback(async (overrideVersion?: number) => {
     // Read the freshest report from the ref (shadows the state value for this
@@ -347,7 +391,26 @@ export function ReportEditorPage() {
     // version; conflictVersion carries that value out to the finally block.
     let conflictVersion: number | null = null;
     const isRetry = overrideVersion !== undefined;
+    let versionToSend = overrideVersion ?? report.version;
     try {
+      // Defensive: a save must always carry a version — the API rejects one
+      // without it ("Version is required"). If the local version is somehow
+      // missing, recover the current one from the server before saving.
+      if (versionToSend == null) {
+        const vr = await fetch(`/api/reports/${report.id}`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (vr.ok) {
+          const fresh = await vr.json();
+          if (typeof fresh?.version === 'number') {
+            versionToSend = fresh.version;
+            if (reportRef.current) {
+              reportRef.current = { ...reportRef.current, version: fresh.version };
+            }
+          }
+        }
+      }
+
       const res = await fetch(`/api/reports/${report.id}`, {
         method: 'PATCH',
         headers: {
@@ -355,7 +418,7 @@ export function ReportEditorPage() {
           Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          version: overrideVersion ?? report.version,
+          version: versionToSend,
           // Send all editable fields
           project_name: report.project_name,
           report_kind: report.report_kind,
@@ -707,20 +770,53 @@ export function ReportEditorPage() {
 
     setUploadingPhoto(true);
     try {
-      // Create form data
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('category', photoCategory);
-      formData.append('caption', photoCaption);
+      // 1) Get a signed upload URL for the report-photos bucket.
+      const urlRes = await fetch('/api/upload/get-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          bucket: 'report-photos',
+          filename: file.name,
+          contentType: file.type,
+          fileSize: file.size,
+        }),
+      });
+      if (!urlRes.ok) {
+        const data = await urlRes.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to get upload URL');
+      }
+      const { signedUrl, storagePath } = await urlRes.json();
 
+      // 2) Upload the file bytes straight to storage.
+      const putRes = await fetch(signedUrl, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type },
+      });
+      if (!putRes.ok) {
+        throw new Error('Failed to upload photo to storage');
+      }
+
+      // 3) Record the photo against the report (path only — no file body).
       const res = await fetch(`/api/reports/${report.id}/photos`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${session.access_token}` },
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          storage_path: storagePath,
+          category: photoCategory,
+          caption: photoCaption,
+        }),
       });
 
       if (!res.ok) {
-        throw new Error('Failed to upload photo');
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to save photo');
       }
 
       const newPhoto = await res.json();
@@ -1633,11 +1729,17 @@ export function ReportEditorPage() {
                   {report.photos.map((photo) => (
                     <div key={photo.id} className="relative group">
                       <div className="aspect-[4/3] bg-cream-100 rounded-md overflow-hidden">
-                        <img
-                          src={photo.storage_path}
-                          alt={photo.caption || photo.category}
-                          className="w-full h-full object-cover"
-                        />
+                        {photoUrls[photo.storage_path] ? (
+                          <img
+                            src={photoUrls[photo.storage_path]}
+                            alt={photo.caption || photo.category}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-ink-300">
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          </div>
+                        )}
                       </div>
                       <div className="mt-1">
                         <p className="text-[11px] font-medium text-ink-500 capitalize">

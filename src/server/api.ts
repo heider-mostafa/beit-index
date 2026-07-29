@@ -907,6 +907,11 @@ const FILE_LIMITS: Record<string, FileLimits> = {
     allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
     allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
   },
+  'report-photos': {
+    maxSize: 15 * 1024 * 1024, // 15 MB
+    allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/heic'],
+    allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'heic'],
+  },
   'reports': {
     maxSize: 50 * 1024 * 1024, // 50 MB
     allowedMimeTypes: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
@@ -978,7 +983,7 @@ router.post('/upload/get-url', authMiddleware, async (req: AuthenticatedRequest,
   }
 
   // Validate bucket
-  const allowedBuckets = ['verification-docs', 'appraiser-assets', 'reports', 'imports'];
+  const allowedBuckets = ['verification-docs', 'appraiser-assets', 'report-photos', 'reports', 'imports'];
   if (!allowedBuckets.includes(bucket)) {
     return res.status(400).json({ error: 'Invalid bucket' });
   }
