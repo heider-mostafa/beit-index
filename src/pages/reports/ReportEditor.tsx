@@ -248,6 +248,12 @@ export function ReportEditorPage() {
 
   // State
   const [report, setReport] = React.useState<Report | null>(null);
+  // Mirror of `report` that autosave reads from, so a debounced or queued save
+  // always sees the latest fields and version — never a stale render closure.
+  const reportRef = React.useRef<Report | null>(null);
+  React.useEffect(() => {
+    reportRef.current = report;
+  }, [report]);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -321,6 +327,10 @@ export function ReportEditorPage() {
 
   // Auto-save with debounce
   const saveReport = React.useCallback(async (overrideVersion?: number) => {
+    // Read the freshest report from the ref (shadows the state value for this
+    // function), so the version and fields we send are never a stale snapshot
+    // captured before an earlier in-flight save bumped the version.
+    const report = reportRef.current;
     if (!report || !session?.access_token || report.status === 'finalized') return;
 
     // Serialize saves: if one is already in flight, mark that another is needed
@@ -420,7 +430,16 @@ export function ReportEditorPage() {
       }
 
       const updated = await res.json();
-      setReport((prev) => prev ? { ...prev, ...updated } : null);
+      // Only sync the version. Do NOT merge the server's echo of the row back
+      // over local state: the user may have typed more while this save was in
+      // flight, and echoing would overwrite (delete) those in-progress edits.
+      if (typeof updated?.version === 'number') {
+        const nextVersion = updated.version;
+        reportRef.current = reportRef.current
+          ? { ...reportRef.current, version: nextVersion }
+          : reportRef.current;
+        setReport((prev) => (prev ? { ...prev, version: nextVersion } : null));
+      }
       setHasUnsavedChanges(false);
       setLastSaved(new Date());
       setError(null);
@@ -434,6 +453,9 @@ export function ReportEditorPage() {
         // Adopt the server's version locally, then retry with it explicitly so
         // the retry isn't tripped up by the stale version in this closure.
         const retryVersion = conflictVersion;
+        reportRef.current = reportRef.current
+          ? { ...reportRef.current, version: retryVersion }
+          : reportRef.current;
         setReport((prev) => prev ? { ...prev, version: retryVersion } : prev);
         // Retry via the ref so the next tick uses the freshest field data/version.
         setTimeout(() => saveReportRef.current(retryVersion), 0);
@@ -444,7 +466,9 @@ export function ReportEditorPage() {
         setTimeout(() => saveReportRef.current(), 0);
       }
     }
-  }, [report, session?.access_token]);
+    // Reads report from the ref, so it doesn't need `report` in deps — staying
+    // stable across keystrokes avoids re-creating the debounced closure.
+  }, [session?.access_token]);
 
   // Always points at the latest saveReport closure so deferred retries/flushes
   // scheduled from inside a save use current report data instead of a stale one.
